@@ -1749,33 +1749,20 @@ describe('CI lanes', () => {
     expect(python.on).toMatchObject({ push: { branches: ['flowleap'] } })
   })
 
-  it('runs only static, lint, and unit tests on a draft, under verdict names that are not the required ones', () => {
-    expect(simulateRun('ci.yml', draft)).toEqual({
+  it.each([
+    ['a draft', draft],
+    ['ready for review', ready],
+    ['a push to a ready pull request', readyPush],
+  ])('runs only static, lint, and unit tests for %s, under verdict names that are not the required ones', (_, event) => {
+    expect(simulateRun('ci.yml', event)).toEqual({
       started: ['node-24', 'node-24-lint', 'node-24-unit'],
       verdict: { name: 'fast lane passed (not full CI)', result: 'success' },
     })
-    expect(simulateRun('ci.yml', draft, { 'node-24-unit': 'failure' }).verdict?.result).toBe('failure')
-  })
-
-  it.each([
-    ['ready for review', ready],
-    ['a push to a ready pull request', readyPush],
-  ])('adds the web snapshots to the fast lane for %s', (_, event) => {
-    expect(simulateRun('ci.yml', event)).toEqual({
-      started: ['node-24', 'node-24-lint', 'node-24-unit', 'node-24-web-snapshots'],
-      verdict: { name: 'fast lane passed (not full CI)', result: 'success' },
-    })
-    for (const job of ['node-24', 'node-24-lint', 'node-24-unit', 'node-24-web-snapshots']) {
+    for (const job of ['node-24', 'node-24-lint', 'node-24-unit']) {
       for (const result of ['failure', 'cancelled', 'skipped'] as const) {
         expect(simulateRun('ci.yml', event, { [job]: result }).verdict?.result, `${job} ${result}`).toBe('failure')
       }
     }
-  })
-
-  it.each([
-    ['a draft', draft],
-    ['a ready pull request', readyPush],
-  ])('runs no Windows or Python job in the fast lane of %s', (_, event) => {
     expect(simulateRun('ci-windows.yml', event)).toEqual({
       started: [],
       verdict: { name: 'windows checks not run (fast lane)', result: 'success' },
@@ -1845,7 +1832,7 @@ describe('CI lanes', () => {
     expect(evaluateTemplate(String(group['cancel-in-progress']), { github: githubContext(merge) })).toBe('false')
   })
 
-  it('starts 3 worker jobs per draft push, 11 per ready push, and at most 19 in the full lane, inside the 20 hosted jobs', () => {
+  it('starts 3 worker jobs per fast-lane push and at most 15 in the full lane, inside the 20 hosted jobs', () => {
     const workers = (event: LaneEvent): { beforeSdk: number; afterSdk: number } => {
       let linuxAndWindows = 0
       for (const file of ['ci.yml', 'ci-windows.yml']) {
@@ -1859,9 +1846,9 @@ describe('CI lanes', () => {
       }
     }
     expect(workers(draft)).toEqual({ beforeSdk: 3, afterSdk: 3 })
-    expect(workers(ready)).toEqual({ beforeSdk: 11, afterSdk: 11 })
-    expect(workers(labelledReady)).toEqual({ beforeSdk: 17, afterSdk: 18 })
-    expect(workers(merge)).toEqual({ beforeSdk: 18, afterSdk: 19 })
+    expect(workers(ready)).toEqual({ beforeSdk: 3, afterSdk: 3 })
+    expect(workers(labelledReady)).toEqual({ beforeSdk: 13, afterSdk: 14 })
+    expect(workers(merge)).toEqual({ beforeSdk: 14, afterSdk: 15 })
   })
 })
 
@@ -1952,8 +1939,7 @@ function simulateRun(file: string, event: LaneEvent, results: Record<string, Job
     if (id === 'lane') {
       const step = Array.isArray(job.steps) ? job.steps.filter(isRecord).find(candidate => candidate.id === 'lane') : undefined
       const full = isRecord(step?.env) ? evaluateTemplate(String(step.env.FULL), context) : ''
-      const ready = isRecord(step?.env) ? evaluateTemplate(String(step.env.READY), context) : ''
-      settled[id] = { result: results.lane ?? 'success', outputs: { full, ready } }
+      settled[id] = { result: results.lane ?? 'success', outputs: { full } }
       continue
     }
     outcome.started.push(id)

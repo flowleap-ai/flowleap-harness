@@ -8,10 +8,10 @@ The `flowleap` fork runs CI on free GitHub-hosted runners with 4 CPUs, because t
 
 ## Decision
 
-`ci.yml`, `ci-windows.yml`, and `ci-python.yml` each start with the same `lane` job. It sets `full` to true for a push or a schedule and for a pull request labelled `full-ci`, and `ready` to true for a pull request that is not a draft. Every other job reads those outputs. This note first sent every ready pull request to the full lane; [the ready fast lane](2026-11-16-fork-ci-ready-pull-requests-fast-lane.md) replaced that part of the decision.
+`ci.yml`, `ci-windows.yml`, and `ci-python.yml` each start with the same `lane` job. It sets `full` to true for a push or a schedule and for a pull request labelled `full-ci`. Every other job reads that output. This note first sent every ready pull request to the full lane; [the ready fast lane](2026-11-16-fork-ci-ready-pull-requests-fast-lane.md) replaced that part of the decision.
 
-- **Fast lane (each pull request without the `full-ci` label).** `node 24 / static` (including the doc-sync gates, without `doc-typecheck`, which needs a build), `node 24 / lint` (with typecheck), and `node 24 / unit, changed files (fast lane)`. A ready pull request adds the eight web snapshot shards. The unit job runs `check:ci:unit:changed`: `vitest run --changed <PR base>` without coverage, with the coverage lane's 90 s test budget. Windows and Python run no job.
-- **Full lane.** Linux static, lint, coverage, snapshots and artifacts, the eight web snapshot shards, benchmarks, and Node compatibility; the Windows build and native tests; and Python. The unit job does not run, because coverage runs the same tests.
+- **Fast lane (each pull request without the `full-ci` label).** `node 24 / static` (including the doc-sync gates, without `doc-typecheck`, which needs a build), `node 24 / lint` (with typecheck), and `node 24 / unit, changed files (fast lane)`. The unit job runs `check:ci:unit:changed`: `vitest run --changed <PR base>` without coverage, with the coverage lane's 90 s test budget. Windows and Python run no job.
+- **Full lane.** Linux static, lint, coverage, snapshots and artifacts, the four web snapshot shards, benchmarks, and Node compatibility; the Windows build and native tests; and Python. The unit job does not run, because coverage runs the same tests.
 - **After a merge.** A push to `flowleap` runs the full Linux suite, the Windows build, native tests, and coverage, and Python. Pushes queue instead of cancelling each other, so every run that starts also finishes.
 - **Nightly.** `ci-windows.yml` runs only Windows coverage at 02:17 UTC.
 
@@ -25,11 +25,11 @@ Branch protection on `flowleap` requires only the `signoff` status, so the verdi
 
 ## Consequences
 
-A draft push starts 3 worker jobs at the same time, a ready push 11, a `full-ci` push at most 18, and a push to `flowleap` at most 19, of the 20 that the organization's free plan allows. Two ready pushes at the same time wait in the queue for runners.
+A pull-request push starts 3 worker jobs at the same time, a `full-ci` push at most 14, and a push to `flowleap` at most 15, of the 20 that the organization's free plan allows.
 
 Windows-only coverage gaps and Windows-only test failures under coverage are found after the merge, on the `flowleap` push run or the nightly run, not on the pull request. The Windows build and native tests run on every `full-ci` pull request.
 
-A fast-lane run does not run `doc-typecheck`, coverage, the recorded-session snapshots, or any Windows or Python job, and a draft also runs no web snapshot. Its green fast lane is not evidence for those surfaces. Vitest selects the fast lane's unit tests through the import graph. A test that reads a changed file at run time, such as the workflow specs that read `.github/workflows/*.yml`, is not selected. A change to any `package.json` selects every test.
+A fast-lane run does not run `doc-typecheck`, coverage, the snapshots, or any Windows or Python job. Its green fast lane is not evidence for those surfaces. Vitest selects the fast lane's unit tests through the import graph. A test that reads a changed file at run time, such as the workflow specs that read `.github/workflows/*.yml`, is not selected. A change to any `package.json` selects every test.
 
 ## Verification
 

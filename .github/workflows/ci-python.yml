@@ -34,16 +34,12 @@ jobs:
     name: ci lane
     outputs:
       full: ${{ steps.lane.outputs.full }}
-      ready: ${{ steps.lane.outputs.ready }}
     steps:
       - name: Select the fast or the full lane
         id: lane
         env:
           FULL: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
-          READY: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
-        run: |
-          echo "full=$FULL" >> "$GITHUB_OUTPUT"
-          echo "ready=$READY" >> "$GITHUB_OUTPUT"
+        run: echo "full=$FULL" >> "$GITHUB_OUTPUT"
 
   python-sdk:
     needs: lane

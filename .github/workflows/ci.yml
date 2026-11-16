@@ -1,9 +1,8 @@
 name: CI
 
-# Pull requests run the fast lane, and a ready pull request adds the web
-# browser snapshots. Pull requests labelled `full-ci` and pushes to `flowleap`
-# run the full lane. The `lane` job decides once per run and every other job
-# reads its outputs.
+# Pull requests run the fast lane; pull requests labelled `full-ci` and pushes
+# to `flowleap` run the full lane. The `lane` job decides once per run and
+# every other job reads its output.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, labeled]
@@ -58,16 +57,12 @@ jobs:
     name: ci lane
     outputs:
       full: ${{ steps.lane.outputs.full }}
-      ready: ${{ steps.lane.outputs.ready }}
     steps:
       - name: Select the fast or the full lane
         id: lane
         env:
           FULL: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
-          READY: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
-        run: |
-          echo "full=$FULL" >> "$GITHUB_OUTPUT"
-          echo "ready=$READY" >> "$GITHUB_OUTPUT"
+        run: echo "full=$FULL" >> "$GITHUB_OUTPUT"
 
   node-24:
     needs: lane
@@ -572,24 +567,23 @@ jobs:
   # The web browser snapshot lane is the longest consumer gate, so it runs in
   # its own job split into Vitest shards. Each shard builds the artifacts it
   # reads; shard 1 also runs the serial files that rewrite the built tree.
-  # The fast lane runs it only for a ready pull request.
   node-24-web-snapshots:
     needs: lane
-    if: needs.lane.outputs.full == 'true' || needs.lane.outputs.ready == 'true'
+    if: needs.lane.outputs.full == 'true'
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-8vcpu-ubuntu-2404'
           || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
           || 'ubuntu-latest' }}
-    name: node 24 / web snapshots ${{ matrix.shard }}/8
+    name: node 24 / web snapshots ${{ matrix.shard }}/4
     strategy:
       # Every shard reports its own snapshot differences in one run.
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4]
     env:
-      DSH_WEB_SNAPSHOT_SHARD: ${{ matrix.shard }}/8
+      DSH_WEB_SNAPSHOT_SHARD: ${{ matrix.shard }}/4
       # Shared hosts expose host CPUs, not an isolated allocation.
       DSH_GATE_CONCURRENCY: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '2' || '' }}
       DSH_WEB_SNAPSHOT_WORKERS: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '2' || '' }}
@@ -815,8 +809,7 @@ jobs:
           || needs.node-24-bench.result != 'success' || needs.node-24-consumers.result != 'success'
           || needs.node-24-web-snapshots.result != 'success' || needs.node-compat.result != 'success')
           || needs.lane.outputs.full != 'true' && (needs.node-24.result != 'success'
-          || needs.node-24-lint.result != 'success' || needs.node-24-unit.result != 'success'
-          || needs.lane.outputs.ready == 'true' && needs.node-24-web-snapshots.result != 'success')
+          || needs.node-24-lint.result != 'success' || needs.node-24-unit.result != 'success')
         run: |
           echo "::error::Needed job results: ${{ join(needs.*.result, ', ') }}"
           exit 1
