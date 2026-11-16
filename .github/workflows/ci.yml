@@ -144,7 +144,10 @@ jobs:
     name: node 24 / coverage
     env:
       # Shared hosts expose host CPUs, not an isolated allocation.
-      DSH_COVERAGE_MAX_WORKERS: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '6' || '' }}
+      # FlowLeap: with no failover variable the lane runs on the standard hosted runner (4 CPUs), where the default of
+      # 4 workers runs 3 instrumented partitions at the same time. The real-shell pwsh startup tests of terminal-bash
+      # and tool-pwsh-persistent then failed in each run from 43835059766 to 43838056095. 3 workers give 2 partitions.
+      DSH_COVERAGE_MAX_WORKERS: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '6' || vars.DSH_CI_FAILOVER_LINUX == '' && '3' || '' }}
       DSH_COVERAGE_PARTITIONS: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '4' || '' }}
       DSH_GATE_CONCURRENCY: ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted' && github.event.pull_request.user.login != 'dependabot[bot]' && '3' || '' }}
       # Managed-scope teardown cases run past the default per-test budget when
