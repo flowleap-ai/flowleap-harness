@@ -199,6 +199,8 @@ describe('createRecordsApi', () => {
     expect(results.every(result => result.ok)).toBe(true)
     expect(fetchImpl.mock.calls[0]![1]).toMatchObject({ credentials: 'include', cache: 'no-store', signal })
     expect(api.contentHref(R71_DOCUMENT as DocumentId)).toBe(`records/api/documents/${R71_DOCUMENT}/content`)
+    answers[`records/api/documents/${R71_DOCUMENT}/text`] = { pages: ['Page 1 of the letter'] }
+    expect(await api.letterText(R71_DOCUMENT as DocumentId, signal)).toEqual({ ok: true, value: { pages: ['Page 1 of the letter'] } })
   })
 
   it('tells a refusal, a service failure, a malformed answer, no answer and an abort apart', async () => {

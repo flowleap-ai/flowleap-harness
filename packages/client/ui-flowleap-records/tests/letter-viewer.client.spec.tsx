@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parsers, type DeadlineDetail, type DeadlineId, type PageHref, type RecordsApi, type TicketId } from '../src/client/api.ts'
 import { markOf } from '../src/client/screens/LetterViewer.tsx'
-import { createFixtureApi, fixtures, FIXTURE_IDS, R71_DOCUMENT, readingWire, ticketWire } from './fixtures.client.ts'
+import { createFixtureApi, fixtures, FIXTURE_IDS, R71_DOCUMENT, readingWire, sha, ticketWire } from './fixtures.client.ts'
 import { flush, mountPanel } from './screen-harness.client.tsx'
 
 let mounted: Awaited<ReturnType<typeof mountPanel>> | null = null
@@ -173,5 +173,181 @@ describe('the letter on the deadline page', () => {
     fireEvent.click(screen.getAllByRole('button', { name: '30.10.2026 · Show on page 1 of the letter' })[0]!)
     await flush()
     expect(viewer().querySelector('mark')?.textContent).toBe('30.10.2026')
+  })
+})
+
+describe('the letter viewer at its edges', () => {
+  const span = readingWire.items[0]!.evidence[0]!
+  /** The ticket of the Art. 94(3) reading; `change` replaces fields of the letter, the reading or the right to decide. */
+  const ticketOf = (change: { images?: typeof images; evidence?: object } = {}) => parsers.ticketDetail({
+    ...ticketWire,
+    letter: { ...ticketWire.letter, pages: 3, pageImages: change.images ?? images },
+    readings: [{
+      ...readingWire,
+      items: [{ ...readingWire.items[0]!, evidence: [{ ...span, ...change.evidence }] }, readingWire.items[1]!],
+    }],
+  }, 'ticket')
+
+  async function mountTicket(ticket: ReturnType<typeof ticketOf>, text: Awaited<ReturnType<RecordsApi['letterText']>>) {
+    const { api } = createFixtureApi()
+    vi.spyOn(api, 'ticket').mockResolvedValue({ ok: true, value: ticket })
+    vi.spyOn(api, 'letterText').mockResolvedValue(text)
+    mounted = await mountPanel(api, { view: 'work', id: FIXTURE_IDS.ticket as TicketId })
+  }
+  const quote = () => screen.getByRole('button', { name: 'nicht neu gegenüber D1 · Show on page 1 of the letter' })
+  const cited = () => screen.getByRole('button', { name: 'D1: EP 1 234 567 A1 · Show on page 1 of the letter' })
+
+  it('shows a second quote in the open viewer, keeps the first opener for the focus, and closes only on Escape', async () => {
+    await mountTicket(ticketOf(), { ok: true, value: { pages: PAGES } })
+    quote().focus()
+    fireEvent.click(quote())
+    await flush()
+    expect(viewer().querySelector('mark')?.textContent).toBe('nicht neu gegenüber D1')
+    fireEvent.click(cited())
+    await flush()
+    expect(viewer().querySelector('mark')?.textContent).toBe('D1: EP 1 234 567 A1')
+    fireEvent.keyDown(viewer(), { key: 'Enter' })
+    await flush()
+    expect(screen.getByRole('complementary', { name: /^Letter: / })).toBeTruthy()
+    fireEvent.keyDown(viewer(), { key: 'Escape' })
+    await flush()
+    expect(screen.queryByRole('complementary', { name: /^Letter: / })).toBeNull()
+    expect(document.activeElement).toBe(quote())
+  })
+
+  it('returns the focus to nothing when the letter opened from an element that is not an HTML element', async () => {
+    await mountTicket(ticketOf(), { ok: true, value: { pages: PAGES } })
+    const drawing = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    drawing.setAttribute('tabindex', '0')
+    document.body.append(drawing)
+    drawing.focus()
+    expect(document.activeElement).toBe(drawing)
+    act(() => { mounted!.keyActs.handler('openLetter')?.() })
+    await flush()
+    fireEvent.click(within(viewer()).getByRole('button', { name: 'Close the letter' }))
+    await flush()
+    expect(screen.queryByRole('complementary', { name: /^Letter: / })).toBeNull()
+    expect(document.activeElement).not.toBe(drawing)
+    drawing.remove()
+  })
+
+  it('reads a text of blank pages as no text layer', async () => {
+    await mountTicket(ticketOf(), { ok: true, value: { pages: ['', '  \n'] } })
+    fireEvent.click(quote())
+    await flush()
+    expect(viewer().textContent).toContain('This letter has no text layer.')
+    expect(within(viewer()).queryByRole('tab', { name: 'Text' })).toBeNull()
+  })
+
+  it('says that the text did not load, and shows the pages', async () => {
+    await mountTicket(ticketOf(), { ok: false, error: { kind: 'service', status: 500 } })
+    fireEvent.click(quote())
+    await flush()
+    expect(viewer().textContent).toContain('FlowLeap could not load the text of the letter, so it shows no mark. The pages show as usual.')
+    expect(within(viewer()).getAllByRole('img', { name: /^Page \d of 3 of the letter$/u })).toHaveLength(3)
+  })
+
+  it('says that a quote is not at its place: on its page, and on a page that the text does not have', async () => {
+    await mountTicket(ticketOf({ evidence: { start: 2, end: 24 } }), { ok: true, value: { pages: PAGES } })
+    fireEvent.click(quote())
+    await flush()
+    expect(viewer().textContent).toContain('The quote is not at its place on page 1, so the page shows no mark.')
+    expect(viewer().querySelector('mark')).toBeNull()
+    mounted?.dispose()
+    mounted = null
+    cleanup()
+    await mountTicket(ticketOf({ evidence: { page: 7 } }), { ok: true, value: { pages: PAGES } })
+    fireEvent.click(screen.getByRole('button', { name: 'nicht neu gegenüber D1 · Show on page 7 of the letter' }))
+    await flush()
+    expect(viewer().textContent).toContain('The quote is not at its place on page 7, so the page shows no mark.')
+  })
+
+  it('says that it has no page image when the letter has no text either', async () => {
+    await mountTicket(ticketOf({ images: [] }), { ok: false, error: { kind: 'refused', status: 404, code: 'not-found', detail: null } })
+    fireEvent.click(quote())
+    await flush()
+    expect(viewer().textContent).toContain('FlowLeap has no page images of this letter. Open the PDF to read it.')
+    mounted?.dispose()
+    mounted = null
+    cleanup()
+    await mountTicket(ticketOf({ images: [] }), { ok: false, error: { kind: 'network' } })
+    fireEvent.click(quote())
+    await flush()
+    expect(viewer().textContent).toContain('FlowLeap has no page images of this letter. Open the PDF to read it.')
+    expect(viewer().textContent).toContain('FlowLeap could not load the text of the letter')
+  })
+})
+
+describe('quotes that open the letter from other parts of a page', () => {
+  it('opens the document of a draft statement that has no letter of its own, and leaves out a source with no place', async () => {
+    const other = sha(55)
+    const quoted = ticketWire.clientReport.statements[0]!.evidence[0]!.span
+    const report = {
+      ...ticketWire.clientReport,
+      statements: [{ text: 'The EPO issued a communication.', evidence: [{ document: other, span: null }, { document: other, span: quoted }] }],
+    }
+    const { api } = createFixtureApi()
+    vi.spyOn(api, 'ticket').mockResolvedValue({ ok: true, value: parsers.ticketDetail({ ...ticketWire, letter: null, reports: [report], clientReport: report }, 'ticket') })
+    textOf(api, null)
+    mounted = await mountPanel(api, { view: 'work', id: FIXTURE_IDS.ticket as TicketId })
+    const quotes = screen.getAllByRole('button', { name: 'Communication under Rule 71(3) EPC · Show on page 1 of the letter' })
+    expect(quotes).toHaveLength(1)
+    fireEvent.click(quotes[0]!)
+    await flush()
+    // The work has no letter, so the viewer has no page image of this document.
+    expect(viewer().textContent).toContain('FlowLeap has no page images of this letter. Open the PDF to read it.')
+    expect(within(viewer()).queryAllByRole('img')).toHaveLength(0)
+  })
+
+  it('opens the letter at a value that reader 1 marked on page 1, and lists only the values that it read', async () => {
+    const { api } = createFixtureApi()
+    const code = fixtures.deadline.readers.code!
+    const deadline: DeadlineDetail = {
+      ...fixtures.deadline,
+      pageImages: images,
+      readers: { ...fixtures.deadline.readers, code: { ...code, fields: { documentDate: code.fields.documentDate! } } },
+    }
+    vi.spyOn(api, 'deadline').mockResolvedValue({ ok: true, value: deadline })
+    mounted = await mountPanel(api, { view: 'deadline', id: FIXTURE_IDS.deadline as DeadlineId })
+    const marks = screen.getByRole('term').closest('dl')!
+    expect(within(marks).getAllByRole('term')).toHaveLength(1)
+    fireEvent.click(within(marks).getByRole('button', { name: '30.10.2026 · Show on page 1 of the letter' }))
+    await flush()
+    expect(viewer().querySelector('mark')?.textContent).toBe('30.10.2026')
+  })
+
+  it('shows the words of a period as text when the deadline has no letter to open, and the viewer with no decision bar beside it', async () => {
+    const { api } = createFixtureApi()
+    const period = { state: 'known', months: 4, source: { kind: 'reader', page: 1, quote: 'within a period of 4 months', place: null } } as const
+    vi.spyOn(api, 'deadline').mockResolvedValue({
+      ok: true, value: { ...fixtures.deadline, officeEvent: { ...fixtures.deadline.officeEvent, document: null, period } },
+    })
+    mounted = await mountPanel(api, { view: 'deadline', id: FIXTURE_IDS.deadline as DeadlineId })
+    expect(screen.getByText('within a period of 4 months')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /within a period of 4 months/u })).toBeNull()
+    mounted.dispose()
+    mounted = null
+    cleanup()
+
+    // An active deadline has no decision, so the viewer is not beside a decision bar.
+    const second = createFixtureApi().api
+    vi.spyOn(second, 'deadline').mockResolvedValue({
+      ok: true, value: { ...fixtures.deadline, pageImages: images, deadline: { ...fixtures.deadline.deadline, state: 'active' } },
+    })
+    textOf(second, PAGES)
+    mounted = await mountPanel(second, { view: 'deadline', id: FIXTURE_IDS.deadline as DeadlineId })
+    fireEvent.click(screen.getByRole('button', { name: 'Page 1 of 3 of the letter' }))
+    await flush()
+    expect(viewer().hasAttribute('data-card')).toBe(false)
+  })
+
+  it('opens the letter at the reference that names the proposed matter', async () => {
+    const { api } = createFixtureApi()
+    vi.spyOn(api, 'intakeDocument').mockResolvedValue({ ok: true, value: fixtures.intakeDocument })
+    mounted = await mountPanel(api, { view: 'letter', document: fixtures.intakeDocument.document }, 'en', 'my-work')
+    fireEvent.click(screen.getAllByRole('button', { name: 'FL-2026-0001 · Show on page 1 of the letter' })[0]!)
+    await flush()
+    expect(viewer().getAttribute('data-placement')).toBe('over')
+    expect(viewer().querySelector('mark')?.textContent).toBe('FL-2026-0001')
   })
 })
