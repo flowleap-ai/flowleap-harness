@@ -207,3 +207,112 @@ export type MyEpoMailboxView =
     /** The EPO's error code and message, for the person who reads the page. */
     message: string
   }
+
+/** One application of the firm's MyEPO portfolios as the Applications page lists it: the fields of the MyEPO list. */
+export interface MyEpoApplicationView {
+  /** The procedure: a European patent (`EPC`) or a unitary patent (`UPP`). One number can have a row for each. */
+  procedure: 'EPC' | 'UPP'
+  /** The application number as MyEPO writes it in a path, for example `EP00000001`. */
+  number: string
+  /** The number with its check digit, for example `EP00000001.8`. */
+  numberWithCheckDigit: string
+  /** The filing date, ISO calendar date. */
+  filingDate: string
+  /** The firm's own file reference, when the firm set one. */
+  fileReference: string | null
+  /** The id of the portfolio that holds the application. */
+  portfolioId: string
+  /** The portfolio name the firm gave it in MyEPO. */
+  portfolioName: string
+}
+
+/** Why the EPO gave no answer to a read of the Applications page. */
+export type MyEpoReadFailure =
+  | {
+    /** No credentials are stored. */
+    kind: 'not-linked'
+  }
+  | {
+    /** The EPO refused the stored credentials. */
+    kind: 'refused'
+  }
+  | {
+    /** The EPO did not answer, or answered with a server error. */
+    kind: 'unreachable'
+  }
+  | {
+    /** The EPO answered with another error. */
+    kind: 'failed'
+    /** The EPO's error code and message, for the person who reads the page. */
+    message: string
+  }
+
+/** The applications of the firm's MyEPO portfolios, or why they could not be read. */
+export type MyEpoApplicationsView =
+  | {
+    /** The EPO answered. */
+    kind: 'read'
+    /** When the read ended, ISO 8601. */
+    readAt: string
+    /** The applications, in the order of the MyEPO list; at most the first 2,000. */
+    applications: MyEpoApplicationView[]
+    /** How many applications the list holds; more than `applications.length` when the list was cut. */
+    total: number
+  }
+  | MyEpoReadFailure
+
+/** One EPO due date of an application, with the words of its term. */
+export interface MyEpoDueDateView {
+  /** The term key of the EPO, for example `DUE_TERM_11`. */
+  termKey: string
+  /** The description of the term in English, French and German; `null` for a key that the EPO's term list does not have. */
+  description: { en: string; fr: string; de: string } | null
+  /** The due date, ISO calendar date. */
+  dueDate: string
+  /** Who must act, as the EPO names it. */
+  actor: string
+}
+
+/** One pending fee of an application. */
+export interface MyEpoFeeView {
+  /** The EPO fee code. */
+  feeCode: string
+  /** The amount. */
+  amount: number
+  /** The currency, when the EPO names one. */
+  currency: string | null
+  /** The due date, ISO calendar date. */
+  dueDate: string
+}
+
+/** The data, the EPO due dates and the pending fees of one application, or why they could not be read. */
+export type MyEpoApplicationDetailView =
+  | {
+    /** The EPO answered. */
+    kind: 'read'
+    /** The title in each language the EPO has, by language code (`EN`, `DE`, `FR`). */
+    titles: Record<string, string>
+    /** The contact text of each applicant. */
+    applicants: string[]
+    /** The contact text of each inventor. */
+    inventors: string[]
+    /** The contact text of each representative. */
+    representatives: string[]
+    /** The publications: office, number, kind code and ISO date. */
+    publications: { office: string; number: string; kind: string; date: string }[]
+    /** The priority claims: office, number and ISO filing date. */
+    priorities: { office: string; number: string; filingDate: string }[]
+    /** The IPC symbols. */
+    ipc: string[]
+    /** The CPC symbols. */
+    cpc: string[]
+    /** The EPO due dates. They are the EPO's own; the deadline engine did not compute or check them. */
+    dueDates: MyEpoDueDateView[]
+    /** The pending fees. */
+    fees: MyEpoFeeView[]
+  }
+  | {
+    /** The account has no permission for the portfolio of the application. */
+    kind: 'no-permission'
+  }
+  | MyEpoReadFailure

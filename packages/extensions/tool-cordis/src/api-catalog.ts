@@ -1431,6 +1431,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the letters and the folders, or why the EPO gave none; never a credential value.',
       },
       {
+        signature: '@Remote async myEpoApplications(signal: AbortSignal): Promise<MyEpoApplicationsView>',
+        description: 'Read the applications of the portfolios that the account may read, for the Applications page: every page of `GET /applications`, at most 2,000 applications. The read changes nothing in MyEPO.',
+        parameters: [{ name: 'signal', description: 'cancels the read.' }],
+        returns: 'the applications with the fields of the MyEPO list, or why the EPO gave none; never a credential value.',
+      },
+      {
+        signature: '@Remote async myEpoApplication(procedure: string, number: string, signal: AbortSignal): Promise<MyEpoApplicationDetailView>',
+        description: 'Read one application for the Applications page: its bibliographic data, the EPO due dates with the words of their terms, and the pending fees. The read changes nothing in MyEPO.',
+        parameters: [{ name: 'procedure', description: '`EPC` or `UPP`.' }, { name: 'number', description: 'the application number as MyEPO writes it in a path, for example `EP00000001`.' }, { name: 'signal', description: 'cancels the read.' }],
+        returns: 'the data, or why the EPO gave none; `no-permission` when the account may not read the portfolio.',
+        throws: ['RemoteError `gateway/bad-request` for another procedure or a number of another form.'],
+      },
+      {
         signature: '@Remote async myEpoLetterPdf(id: string, signal: AbortSignal): Promise<MyEpoLetterPdf>',
         description: 'Download the PDF of one letter of the last Mailbox read. The EPO marks the letter as read in MyEPO at each download.',
         parameters: [{ name: 'id', description: 'the communication id of a letter that {@link myEpoMailbox} returned.' }, { name: 'signal', description: 'cancels the download.' }],
@@ -8692,6 +8705,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MyEpoApplication {\n    readonly procedure: MyEpoProcedure;\n    readonly number: MyEpoApplicationNumber;\n    readonly numberWithCheckDigit: string;\n    readonly filingDate: string;\n    readonly fileReference?: string;\n    readonly portfolioId: MyEpoPortfolioId;\n    readonly portfolioName: string;\n}',
   },
   {
+    name: 'MyEpoApplicationDetailView',
+    declaration: 'export type MyEpoApplicationDetailView = {\n    kind: \'read\';\n    titles: Record<string, string>;\n    applicants: string[];\n    inventors: string[];\n    representatives: string[];\n    publications: {\n        office: string;\n        number: string;\n        kind: string;\n        date: string;\n    }[];\n    priorities: {\n        office: string;\n        number: string;\n        filingDate: string;\n    }[];\n    ipc: string[];\n    cpc: string[];\n    dueDates: MyEpoDueDateView[];\n    fees: MyEpoFeeView[];\n} | {\n    kind: \'no-permission\';\n} | MyEpoReadFailure;',
+  },
+  {
     name: 'MyEpoApplicationNumber',
     declaration: 'export type MyEpoApplicationNumber = Branded<\'MyEpoApplicationNumber\'>;',
   },
@@ -8702,6 +8719,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MyEpoApplicationRef',
     declaration: 'export interface MyEpoApplicationRef {\n    readonly procedure: MyEpoProcedure;\n    readonly number: MyEpoApplicationNumber;\n}',
+  },
+  {
+    name: 'MyEpoApplicationsView',
+    declaration: 'export type MyEpoApplicationsView = {\n    kind: \'read\';\n    readAt: string;\n    applications: MyEpoApplicationView[];\n    total: number;\n} | MyEpoReadFailure;',
+  },
+  {
+    name: 'MyEpoApplicationView',
+    declaration: 'export interface MyEpoApplicationView {\n    procedure: \'EPC\' | \'UPP\';\n    number: string;\n    numberWithCheckDigit: string;\n    filingDate: string;\n    fileReference: string | null;\n    portfolioId: string;\n    portfolioName: string;\n}',
   },
   {
     name: 'MyEpoBibliographicData',
@@ -8728,8 +8753,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MyEpoDueDate {\n    readonly termKey: string;\n    readonly dueDate: string;\n    readonly actor: string;\n}',
   },
   {
+    name: 'MyEpoDueDateView',
+    declaration: 'export interface MyEpoDueDateView {\n    termKey: string;\n    description: {\n        en: string;\n        fr: string;\n        de: string;\n    } | null;\n    dueDate: string;\n    actor: string;\n}',
+  },
+  {
     name: 'MyEpoFee',
     declaration: 'export interface MyEpoFee {\n    readonly feeCode: string;\n    readonly amount: number;\n    readonly currency?: string;\n    readonly dueDate: string;\n}',
+  },
+  {
+    name: 'MyEpoFeeView',
+    declaration: 'export interface MyEpoFeeView {\n    feeCode: string;\n    amount: number;\n    currency: string | null;\n    dueDate: string;\n}',
   },
   {
     name: 'MyEpoFolder',
@@ -8786,6 +8819,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MyEpoProcedure',
     declaration: 'export type MyEpoProcedure = \'EPC\' | \'UPP\';',
+  },
+  {
+    name: 'MyEpoReadFailure',
+    declaration: 'export type MyEpoReadFailure = {\n    kind: \'not-linked\';\n} | {\n    kind: \'refused\';\n} | {\n    kind: \'unreachable\';\n} | {\n    kind: \'failed\';\n    message: string;\n};',
   },
   {
     name: 'MyEpoTerm',

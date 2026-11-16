@@ -2781,9 +2781,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-flowleap-folder':
         specifier: workspace:*
         version: link:../../client/ui-flowleap-folder
-      '@deepseek-ai/dsh-client-ui-flowleap-letters':
+      '@deepseek-ai/dsh-client-ui-flowleap-myepo':
         specifier: workspace:*
-        version: link:../../client/ui-flowleap-letters
+        version: link:../../client/ui-flowleap-myepo
       '@deepseek-ai/dsh-client-ui-flowleap-records':
         specifier: workspace:*
         version: link:../../client/ui-flowleap-records
@@ -5261,7 +5261,7 @@ importers:
         specifier: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
         version: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
 
-  packages/client/ui-flowleap-letters:
+  packages/client/ui-flowleap-myepo:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: workspace:~

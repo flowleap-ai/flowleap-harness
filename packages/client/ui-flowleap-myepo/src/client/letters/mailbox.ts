@@ -5,15 +5,14 @@
  */
 
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
+import { createPageStore, readList, type Answer, type ReadFailure, type ReadSnapshot } from '../shared/read.ts'
 import type { MyEpoFolderView, MyEpoLetterPdf, MyEpoLetterView, MyEpoMailboxView } from '@deepseek-ai/dsh-api-remotes/client'
 
 /** A view of the list: every letter, the unread ones, the ones not handled, or one Mailbox folder. */
 export type MailboxViewId = 'all' | 'unread' | 'open' | `folder:${string}`
 
 /** Why the last read gave no list: an outcome of the EPO, or a failed call to the Host. */
-export type MailboxFailure =
-  | Exclude<MyEpoMailboxView, { kind: 'read' }>
-  | { readonly kind: 'error'; readonly message: string }
+export type MailboxFailure = ReadFailure
 
 /** The PDF of the open letter. */
 export type LetterPdf =
@@ -22,21 +21,13 @@ export type LetterPdf =
   | { readonly id: string; readonly status: 'failed'; readonly message: string }
 
 /** What the page renders. */
-export interface MailboxSnapshot {
-  /** `loading` until the first answer. */
-  readonly phase: 'loading' | 'ready'
-  /** A read is crossing the wire. */
-  readonly reading: boolean
-  /** Why the last read gave no list; `null` after a read that answered. */
-  readonly failure: MailboxFailure | null
+export interface MailboxSnapshot extends ReadSnapshot {
   /** The letters of the last read that answered. */
   readonly letters: readonly MyEpoLetterView[]
   /** The folders of the last read that answered. */
   readonly folders: readonly MyEpoFolderView[]
   /** How many letters the Mailbox holds. */
   readonly total: number
-  /** When the last read that answered ended, ISO 8601; `null` before it. */
-  readonly readAt: string | null
   readonly view: MailboxViewId
   readonly query: string
   /** How many rows of the filtered list the page shows. */
@@ -50,8 +41,7 @@ export interface MailboxSnapshot {
   readonly opened: readonly string[]
 }
 
-/** A Remote answer. */
-export type Answer<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: { readonly message: string } }
+export type { Answer } from '../shared/read.ts'
 
 /** What the model needs from the browser and the Host. */
 export interface MailboxDependencies {
@@ -125,36 +115,19 @@ const START: MailboxSnapshot = {
  * @returns the model.
  */
 export function createMailbox(deps: MailboxDependencies): Mailbox {
-  let snapshot = START
-  const listeners = new Set<() => void>()
-  const publish = (change: Partial<MailboxSnapshot>): void => {
-    snapshot = { ...snapshot, ...change }
-    listeners.forEach((listener) => { listener() })
-  }
+  const store = createPageStore(START, () => { void refresh() })
+  const { publish } = store
   const release = (): void => {
-    if (snapshot.pdf?.status === 'ready') deps.revokeUrl(snapshot.pdf.url)
+    const { pdf } = store.get()
+    if (pdf?.status === 'ready') deps.revokeUrl(pdf.url)
   }
 
-  const refresh = async (): Promise<void> => {
-    if (snapshot.reading) return
-    publish({ reading: true })
-    const answer = await deps.read()
-    if (!answer.ok) {
-      publish({ phase: 'ready', reading: false, failure: { kind: 'error', message: answer.error.message } })
-      return
-    }
-    const view = answer.value
-    if (view.kind !== 'read') {
-      publish({ phase: 'ready', reading: false, failure: view })
-      return
-    }
-    publish({
-      phase: 'ready', reading: false, failure: null, letters: view.letters, folders: view.folders, total: view.total, readAt: view.readAt,
-    })
-  }
+  const refresh = (): Promise<void> => readList<Extract<MyEpoMailboxView, { kind: 'read' }>, MailboxSnapshot>(store, deps.read, (view) => {
+    publish({ letters: view.letters, folders: view.folders, total: view.total, readAt: view.readAt })
+  })
 
   const select = async (id: string | null): Promise<void> => {
-    if (id === snapshot.selected) return
+    if (id === store.get().selected) return
     release()
     if (id === null) {
       publish({ selected: null, wide: false, pdf: null })
@@ -163,43 +136,34 @@ export function createMailbox(deps: MailboxDependencies): Mailbox {
     publish({ selected: id, pdf: { id, status: 'loading' } })
     const answer = await deps.download(id)
     // The person opened another letter, or closed this one, while the download ran.
-    if (snapshot.selected !== id) return
+    if (store.get().selected !== id) return
     if (!answer.ok) {
       publish({ pdf: { id, status: 'failed', message: answer.error.message } })
       return
     }
-    const wasUnread = snapshot.letters.some(letter => letter.id === id && !letter.read)
+    const wasUnread = store.get().letters.some(letter => letter.id === id && !letter.read)
     publish({
       pdf: { id, status: 'ready', url: deps.createUrl(answer.value.pdf), fileName: answer.value.fileName },
-      letters: snapshot.letters.map(letter => (letter.id === id ? { ...letter, read: true } : letter)),
-      opened: wasUnread ? [...snapshot.opened, id] : snapshot.opened,
+      letters: store.get().letters.map(letter => (letter.id === id ? { ...letter, read: true } : letter)),
+      opened: wasUnread ? [...store.get().opened, id] : store.get().opened,
     })
   }
 
   return {
-    hooks: {
-      mailbox: {
-        getSnapshot: () => snapshot,
-        subscribe: (listener) => {
-          listeners.add(listener)
-          if (listeners.size === 1 && snapshot.phase === 'loading') void refresh()
-          return () => { listeners.delete(listener) }
-        },
-      },
-    },
+    hooks: { mailbox: store.observable },
     refresh,
     select,
     step: (direction) => {
-      const list = shownLetters(snapshot)
+      const list = shownLetters(store.get())
       const first = list[0]
       if (first === undefined) return Promise.resolve()
-      const at = list.findIndex(letter => letter.id === snapshot.selected)
+      const at = list.findIndex(letter => letter.id === store.get().selected)
       const next = at === -1 ? first : list[Math.max(0, Math.min(list.length - 1, at + direction))] as MyEpoLetterView
       return select(next.id)
     },
     setView: (view) => { publish({ view, limit: PAGE_SIZE }) },
     setQuery: (query) => { publish({ query, limit: PAGE_SIZE }) },
-    more: () => { publish({ limit: snapshot.limit + PAGE_SIZE }) },
+    more: () => { publish({ limit: store.get().limit + PAGE_SIZE }) },
     setWide: (wide) => { publish({ wide }) },
     dispose: release,
   }

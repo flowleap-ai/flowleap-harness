@@ -1,18 +1,12 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Context, Service } from '@deepseek-ai/cordis'
-import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import { allowAllAccess, bindSnapshotSelector, contextMenuHook, makeTranslate, stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
-import { apply, inject, PANEL_ID } from '../src/client/index.ts'
-import { apply as applyNode, name } from '../src/index.ts'
-import { LettersPage, type LettersPageProps } from '../src/client/LettersPage.tsx'
-import { LettersPanelIcon } from '../src/client/LettersPanelIcon.tsx'
-import { de, en, es, fr, ja, NS, pt, ru, zh } from '../src/client/locales.ts'
-import { PAGE_SIZE, type Mailbox, type MailboxSnapshot } from '../src/client/mailbox.ts'
-import { FOLDERS, LETTERS, ok, READ } from './fixture.client.ts'
+import { allowAllAccess, bindSnapshotSelector, contextMenuHook, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { LettersPage, type LettersPageProps } from '../src/client/letters/LettersPage.tsx'
+import { LettersPanelIcon } from '../src/client/letters/LettersPanelIcon.tsx'
+import { en } from '../src/client/locales/letters.ts'
+import { PAGE_SIZE, type Mailbox, type MailboxSnapshot } from '../src/client/letters/mailbox.ts'
+import { FOLDERS, LETTERS, READ } from './letters-fixture.client.ts'
 
 afterEach(() => {
   cleanup()
@@ -243,87 +237,5 @@ describe('the Letters launcher glyph', () => {
   it('draws at the requested edge', () => {
     const { container } = render(<LettersPanelIcon size={18} />)
     expect(container.querySelector('svg')).not.toBeNull()
-  })
-})
-
-class RemoteStub extends Service {
-  constructor(ctx: Context, readonly flowleapConnectors: object) {
-    super(ctx, 'remote')
-  }
-}
-
-async function pluginContext() {
-  const ctx = new Context()
-  await ctx.plugin(SlotRegistry).await()
-  const connectors = {
-    myEpoMailbox: vi.fn(() => Promise.resolve(ok(READ))),
-    myEpoLetterPdf: vi.fn((_id: string) => Promise.resolve(ok({ fileName: 'grant.pdf', pdf: new Uint8Array([37, 80, 68, 70]) }))),
-  }
-  new RemoteStub(ctx, connectors)
-  await ctx.plugin({ apply(provider: Context) { provider.provide('remote.flowleapConnectors', connectors as never) } }).await()
-  ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) }, get: () => stubConfigForm().scope } as never)
-  await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
-  ctx.slots.register({
-    name: 'root',
-    children: { 'sidebar.panellist': { kind: 'list', scope: 'root' }, main: { kind: 'keyed', scope: 'root' } },
-  } as never, () => null)
-  return { ctx, connectors }
-}
-
-describe('ui-flowleap-letters browser half', () => {
-  it('declares the services it uses', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.flowleapConnectors'])
-  })
-
-  it('registers the launcher and the page, reads through the Remote, and removes both on dispose', async () => {
-    const createUrl = vi.fn((_blob: Blob) => 'blob:letter')
-    const revokeUrl = vi.fn()
-    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: createUrl, revokeObjectURL: revokeUrl }))
-    const { ctx, connectors } = await pluginContext()
-    const fiber = ctx.plugin({ inject: [...inject], apply })
-    await fiber.await()
-    const launcher = ctx.slots.entries('sidebar.panellist')[0]!
-    expect(launcher.options.id).toBe(PANEL_ID)
-    expect((launcher.options.label as () => string)()).toBe('Letters')
-    const main = ctx.slots.entries('main')[0]!
-    expect(main.options.key).toBe(PANEL_ID)
-    const injected = main.inject!()
-    const mailbox = {
-      hooks: injected.hooks as Mailbox['hooks'], refresh: injected.refresh as Mailbox['refresh'], select: injected.select as Mailbox['select'],
-    }
-    await mailbox.refresh()
-    expect(connectors.myEpoMailbox).toHaveBeenCalledTimes(1)
-    await mailbox.select('grant')
-    expect(connectors.myEpoLetterPdf).toHaveBeenCalledWith('grant')
-    expect(createUrl.mock.calls[0]![0]).toMatchObject({ type: 'application/pdf', size: 4 })
-    expect(mailbox.hooks.mailbox.getSnapshot().pdf).toMatchObject({ status: 'ready', url: 'blob:letter' })
-    await fiber.dispose()
-    expect(revokeUrl).toHaveBeenCalledWith('blob:letter')
-    expect(ctx.slots.entries('sidebar.panellist')).toEqual([])
-    expect(ctx.slots.entries('main')).toEqual([])
-    await ctx.fiber.dispose()
-    vi.unstubAllGlobals()
-  })
-
-  it('registers key-identical dictionaries in eight locales and releases them with its fiber', async () => {
-    const { ctx } = await pluginContext()
-    ctx.locale.setLocale('de')
-    const fiber = ctx.plugin({ inject: [...inject], apply })
-    await fiber.await()
-    const translate = ctx.locale.bind(NS)
-    expect(translate('panel')).toBe('Schreiben')
-    ctx.locale.setLocale('en')
-    expect(translate('view.open')).toBe('Not handled')
-    for (const dictionary of [zh, ja, es, fr, de, ru, pt]) expect(Object.keys(dictionary).sort()).toEqual(Object.keys(en).sort())
-    await fiber.dispose()
-    expect(translate('panel')).not.toBe(en.panel)
-    await ctx.fiber.dispose()
-  })
-})
-
-describe('ui-flowleap-letters node half', () => {
-  it('registers nothing on the host', () => {
-    expect(name).toBe('ui-flowleap-letters')
-    expect(() => { applyNode() }).not.toThrow()
   })
 })

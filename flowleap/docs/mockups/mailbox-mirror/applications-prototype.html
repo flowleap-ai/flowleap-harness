@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE: Applications mirror</title>
+<link rel="stylesheet" href="../../../../.agents/skills/flowleap-design-language/references/mockups/records.css">
+<style>
+  #root { display: flex; flex-direction: column; min-height: 0; height: 100%; font-size: var(--dsw-font-xs-13-font-size); line-height: var(--dsw-font-xs-13-line-height); color: var(--dsw-alias-label-primary); }
+  .p-ico { width: 16px; height: 16px; flex: none; }
+  .p-muted { color: var(--dsw-alias-label-secondary); }
+  .p-strong { font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+  .p-ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .p-num { font-variant-numeric: tabular-nums; }
+  .p-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dsw-alias-state-business-primary); flex: none; }
+  .p-dot.off { background: transparent; }
+  .p-bar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l3); flex: none; }
+  .p-bar h1 { margin: 0 8px 0 0; font-size: var(--dsw-font-s-14-font-size); line-height: var(--dsw-font-s-14-line-height); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+  .p-search { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: var(--dsw-radius-sm); border: 0.5px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-secondary); flex: 1; max-width: 480px; }
+  .p-search input { border: 0; outline: 0; background: transparent; color: var(--dsw-alias-label-primary); font: inherit; flex: 1; min-width: 0; }
+  .p-chip { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 999px; border: 0.5px solid var(--dsw-alias-border-l2); background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; cursor: pointer; white-space: nowrap; }
+  .p-chip:hover { background: var(--dsw-alias-interactive-bg-hover); }
+  .p-chip.on { background: var(--dsw-alias-interactive-bg-active); color: var(--dsw-alias-label-primary); }
+  .p-btn { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: var(--dsw-radius-sm); border: 0.5px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); font: inherit; cursor: pointer; white-space: nowrap; }
+  .p-btn:hover { background: var(--dsw-alias-interactive-bg-hover); }
+  .p-btn.ghost { border-color: transparent; background: transparent; }
+  .p-btn.icon { width: 32px; padding: 0; justify-content: center; }
+  .p-tag { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font-size: var(--dsw-font-xxs-12-font-size); white-space: nowrap; background: var(--dsw-alias-bg-multi-select); color: var(--dsw-alias-label-secondary); }
+  .p-tag.warn { background: var(--dsw-alias-state-warn-tertiary); color: var(--dsw-alias-label-primary); }
+  .p-tag.ok { background: var(--dsw-alias-state-success-tertiary); color: var(--dsw-alias-label-primary); }
+  .p-tag.new { background: var(--dsw-alias-state-business-tertiary); color: var(--dsw-alias-label-primary); }
+  .p-empty { display: grid; place-items: center; flex: 1; color: var(--dsw-alias-label-secondary); padding: 48px; text-align: center; }
+
+  /* the letter, shared by the three variants */
+  .lt { display: flex; flex-direction: column; min-height: 0; height: 100%; background: var(--dsw-alias-bg-base); }
+  .lt-top { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l3); flex: none; }
+  .lt-top .sp { flex: 1; }
+  .lt-scroll { overflow: auto; padding: 24px 24px 80px; flex: 1; min-height: 0; }
+  .lt h2 { margin: 8px 0 16px; font-size: var(--dsw-font-l-20-font-size); line-height: var(--dsw-font-l-20-line-height); font-weight: var(--dsw-font-xs-strong-13-font-weight); max-width: 40ch; }
+  .lt-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+  .lt-props { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px 24px; margin-bottom: 16px; }
+  .lt-props .k { color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); }
+  .lt-note { display: flex; gap: 8px; align-items: center; padding: 8px 12px; margin-bottom: 16px; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-multi-select); color: var(--dsw-alias-label-secondary); }
+  .lt-sheet { max-width: 560px; aspect-ratio: 210 / 297; padding: 40px; border-radius: var(--dsw-radius-xs); background: var(--dsw-alias-bg-document-preview); color: var(--dsw-alias-label-document-preview); box-shadow: var(--dsw-elevation-panel); font-size: var(--dsw-font-xxs-12-font-size); line-height: 1.6; }
+  .lt-sheet .hd { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 16px; margin-bottom: 24px; border-bottom: 1px solid currentColor; }
+  .lt-sheet b { display: block; margin: 24px 0 8px; font-size: var(--dsw-font-xs-13-font-size); }
+  .lt-sheet .ln { height: 6px; margin: 8px 0; border-radius: 2px; background: currentColor; opacity: 0.16; }
+
+  /* truncation: a fade, not a hard cut, on a line that does not fit (cut() sets .is-cut and the title) */
+  [data-cut] { overflow: hidden; white-space: nowrap; min-width: 0; }
+  [data-cut].is-cut { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
+  [dir="rtl"] [data-cut].is-cut, [data-cut][dir="rtl"].is-cut { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent); }
+  .p-wrap { overflow-wrap: anywhere; }
+  .p-more { display: block; width: calc(100% - 32px); margin: 16px; justify-content: center; }
+  .lt h2.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .lt-more { border: 0; background: none; padding: 0; margin: -8px 0 16px; color: var(--dsw-alias-label-secondary); font: inherit; cursor: pointer; text-decoration: underline; }
+  .lt-tags .p-tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: inline-block; line-height: 20px; }
+  .lt-top { container-type: inline-size; }
+  .lt-top .p-btn { flex: none; }
+  .lt-top .lbl { white-space: nowrap; }
+  .lt { container-type: inline-size; }
+  @container (max-width: 520px) { .lt-top-in .lbl { display: none; } .lt-top-in .p-btn { width: 32px; padding: 0; justify-content: center; } }
+  .lt-top-in { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; }
+  .lt-crumb { display: none; }
+  /* the PDF: a toolbar with zoom, and a wide reading mode */
+  .pdf-bar { position: sticky; top: -24px; z-index: 2; display: flex; align-items: center; gap: 4px; padding: 8px 0; margin-bottom: 8px; background: var(--dsw-alias-bg-base); }
+  .pdf-bar .sp { flex: 1; }
+  .pdf-bar .pg { color: var(--dsw-alias-label-secondary); white-space: nowrap; padding: 0 8px; }
+  .pdf-bar .z { min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; }
+  .pdf-stage { overflow: auto; padding: 16px; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-multi-select); }
+  .pdf-stage .lt-sheet { max-width: none; margin: 0 auto; }
+  .a-wrap.wide { grid-template-columns: minmax(0, 1fr); }
+  .a-wrap.wide .a-folders, .a-wrap.wide .a-list { display: none; }
+  .a-wrap.wide .lt-crumb { display: inline-flex; }
+  .a-wrap.wide .lt-props, .a-wrap.wide .lt-note { display: none; }
+  .a-wrap.wide .lt h2 { font-size: var(--dsw-font-s-14-font-size); line-height: var(--dsw-font-s-14-line-height); max-width: none; margin: 8px 0; }
+  .a-select { display: none; }
+  .a-list .p-bar { min-width: 0; }
+  .p-search { min-width: 0; }
+  .a-list .a-select { flex: none; }
+  .a-wrap.wide .lt-more { display: none; }
+  .a-wrap.wide .lt h2.clamp { display: block; }
+  .proto .st { max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+
+  /* A: three panes, as Outlook */
+  .a-wrap { display: grid; grid-template-columns: 208px 380px minmax(0, 1fr); flex: 1; min-height: 0; }
+  .a-wrap > * { min-height: 0; overflow: auto; }
+  .a-folders { padding: 12px 8px; border-right: 0.5px solid var(--dsw-alias-border-l3); }
+  .a-fh { padding: 12px 8px 4px; color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); }
+  .a-f { display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 8px; border: 0; border-radius: var(--dsw-radius-sm); background: transparent; color: var(--dsw-alias-label-primary); font: inherit; cursor: pointer; text-align: left; }
+  .a-f:hover { background: var(--dsw-alias-interactive-bg-hover); }
+  .a-f.on { background: var(--dsw-alias-interactive-bg-active); font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+  .a-f span:not(.n) { min-width: 0; flex: 1; }
+  .a-f .p-ico { flex: none; }
+  .a-f .n { flex: none; margin-left: auto; color: var(--dsw-alias-label-secondary); font-weight: 400; }
+  .a-list { border-right: 0.5px solid var(--dsw-alias-border-l3); display: flex; flex-direction: column; overflow: hidden !important; }
+  .a-list .rows { overflow: auto; flex: 1; padding-bottom: 64px; }
+  .a-row { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 4px 8px; padding: 12px 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l3); cursor: pointer; position: relative; }
+  .a-row:hover { background: var(--dsw-alias-interactive-bg-hover); }
+  .a-row.sel { background: var(--dsw-alias-interactive-bg-active); }
+  .a-row.sel::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--dsw-alias-state-business-primary); }
+  .a-row .l1 { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+  .a-row .l1 .p-who { flex: 1; display: block; }
+  .a-row .t { overflow-wrap: anywhere; }
+  .a-row .l1 .d { margin-left: auto; flex: none; color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); }
+  .a-row .p-dot { margin-top: 6px; }
+  .a-row .t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .a-row.is-new .p-who, .a-row.is-new .t { font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+
+  /* B: full-width rows and a drawer, as Gmail */
+  .b-tabs { display: flex; gap: 8px; padding: 8px 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l3); overflow: auto; flex: none; }
+  .b-body { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .b-rows { height: 100%; overflow: auto; }
+  .b-row { display: grid; grid-template-columns: 8px 176px minmax(0, 1fr) 152px 120px 96px; gap: 16px; align-items: center; height: 44px; padding: 0 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l3); cursor: pointer; }
+  .b-row:hover { background: var(--dsw-alias-interactive-bg-hover); }
+  .b-row.sel { background: var(--dsw-alias-interactive-bg-active); }
+  .b-row.is-new .p-who, .b-row.is-new .t { font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+  .b-row .d { text-align: right; color: var(--dsw-alias-label-secondary); }
+  .b-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: min(640px, 100%); border-left: 0.5px solid var(--dsw-alias-border-l2); box-shadow: var(--dsw-elevation-prominent); transform: translateX(104%); transition: transform var(--ds-transition-duration) var(--ds-ease-in-out); }
+  .b-drawer.open { transform: none; }
+
+  /* C: a table grouped by application, with the letter beside it */
+  .c-wrap { display: grid; grid-template-columns: minmax(0, 1fr); flex: 1; min-height: 0; }
+  .c-wrap.open { grid-template-columns: minmax(0, 1fr) minmax(400px, 44%); }
+  .c-wrap > * { min-height: 0; overflow: auto; }
+  .c-side { border-left: 0.5px solid var(--dsw-alias-border-l3); overflow: hidden !important; }
+  .c-tbl { width: 100%; border-collapse: collapse; }
+  .c-tbl th { position: sticky; top: 0; z-index: 2; height: 32px; padding: 0 16px; text-align: left; font-weight: 400; font-size: var(--dsw-font-xxs-12-font-size); color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-base); border-bottom: 0.5px solid var(--dsw-alias-border-l3); white-space: nowrap; }
+  .c-tbl td { height: 44px; padding: 0 16px; white-space: nowrap; }
+  .c-tbl td.t { white-space: normal; min-width: 240px; }
+  .c-tbl tr.g td { height: 36px; background: var(--dsw-alias-bg-multi-select); position: sticky; top: 32px; z-index: 1; }
+  .c-tbl tr.r { cursor: pointer; }
+  .c-tbl tr.r:hover td { background: var(--dsw-alias-interactive-bg-hover); }
+  .c-tbl tr.r.sel td { background: var(--dsw-alias-interactive-bg-active); }
+  .c-tbl tr.r.is-new td.t { font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+  .c-tbl .ti { display: flex; align-items: center; gap: 8px; }
+  .c-wrap.open .c-hide { display: none; }
+
+  /* the prototype switcher: not a part of the design */
+  .proto { white-space: nowrap; position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 99; display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 999px; background: #111; color: #fff; font: 12px/1.4 ui-monospace, Menlo, monospace; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); border: 1px solid #f5a524; }
+  .proto button { width: 28px; height: 28px; border-radius: 50%; border: 0; background: #333; color: #fff; cursor: pointer; font-size: 14px; }
+  .proto button:hover { background: #555; }
+  .proto .st { color: #aaa; border-left: 1px solid #444; padding-left: 12px; }
+  .proto b { color: #f5a524; }
+  .proto .seg { display: flex; padding: 2px; border-radius: 999px; background: #333; }
+  .proto .seg a { padding: 4px 10px; border-radius: 999px; color: #ccc; text-decoration: none; }
+  .proto .seg a.on { background: #fff; color: #111; }
+  @media (max-width: 1100px) { .a-wrap { grid-template-columns: 320px minmax(0, 1fr); } .a-folders { display: none; } .a-select { display: block; height: 32px; max-width: 160px; border-radius: var(--dsw-radius-sm); border: 0.5px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; padding: 0 8px; } .proto .st { display: none; } }
+  @media (max-width: 760px) { .a-wrap { grid-template-columns: minmax(0, 1fr); } .a-wrap > .a-read { display: none; } .a-wrap.has-sel > .a-list { display: none; } .a-wrap.has-sel > .a-read { display: block; } .a-wrap .lt-crumb { display: inline-flex; } .proto { left: 8px; right: 8px; transform: none; overflow: auto; } }
+  @media (max-width: 1100px) { .b-row { grid-template-columns: 8px 120px minmax(0, 1fr) 96px; } .b-row .hide-n { display: none; } }
+
+  /* applications prototype */
+  .ap-tag { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 4px; font-size: var(--dsw-font-xxs-12-font-size); background: var(--dsw-alias-bg-multi-select); color: var(--dsw-alias-label-secondary); white-space: nowrap; }
+  .ap-tag.upp { background: var(--dsw-alias-state-business-tertiary); color: var(--dsw-alias-label-primary); }
+  .ap-over { color: var(--dsw-alias-state-error-primary); }
+  .ap-sec { margin: 0 0 24px; }
+  .ap-sec h3 { margin: 0 0 8px; font-size: var(--dsw-font-xs-13-font-size); font-weight: var(--dsw-font-xs-strong-13-font-weight); display: flex; gap: 8px; align-items: center; }
+  .ap-sec h3 .n { color: var(--dsw-alias-label-secondary); font-weight: 400; }
+  .ap-src { margin-left: auto; font-weight: 400; color: var(--dsw-alias-label-secondary); font-size: var(--dsw-font-xxs-12-font-size); }
+  .ap-t { width: 100%; border-collapse: collapse; }
+  .ap-t th { text-align: left; font-weight: 400; font-size: var(--dsw-font-xxs-12-font-size); color: var(--dsw-alias-label-secondary); padding: 4px 12px 4px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l3); white-space: nowrap; }
+  .ap-t td { padding: 8px 12px 8px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l3); vertical-align: top; overflow-wrap: anywhere; }
+  .ap-t td.nw { white-space: nowrap; }
+  .ap-t td.r, .ap-t th.r { text-align: right; padding-right: 0; }
+  .ap-list { margin: 0; padding: 0; list-style: none; }
+  .ap-list li { padding: 4px 0; overflow-wrap: anywhere; }
+  .ap-more { border: 0; background: none; padding: 0; color: var(--dsw-alias-label-secondary); font: inherit; text-decoration: underline; cursor: pointer; }
+  .ap-none { color: var(--dsw-alias-label-secondary); }
+  .ap-row2 { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; padding: 12px 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l3); cursor: pointer; position: relative; }
+  .ap-row2:hover { background: var(--dsw-alias-interactive-bg-hover); }
+  .ap-row2.sel { background: var(--dsw-alias-interactive-bg-active); }
+  .ap-row2.sel::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--dsw-alias-state-business-primary); }
+  .ap-row2 .ref { font-weight: var(--dsw-font-xs-strong-13-font-weight); }
+  .b-apps { height: 100%; overflow: auto; }
+  .bt { width: 100%; border-collapse: collapse; }
+  .bt th { position: sticky; top: 0; z-index: 2; height: 32px; padding: 0 16px; text-align: left; font-weight: 400; font-size: var(--dsw-font-xxs-12-font-size); color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-base); border-bottom: 0.5px solid var(--dsw-alias-border-l3); white-space: nowrap; cursor: pointer; user-select: none; }
+  .bt th[aria-sort]::after { content: ' ↑'; } .bt th[aria-sort=descending]::after { content: ' ↓'; }
+  .bt td { height: 44px; padding: 0 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l3); white-space: nowrap; max-width: 320px; }
+  .bt tr.r { cursor: pointer; } .bt tr.r:hover td { background: var(--dsw-alias-interactive-bg-hover); } .bt tr.r.sel td { background: var(--dsw-alias-interactive-bg-active); }
+  .bt td > [data-cut] { display: block; }
+  .c-wrap.open .bt .c-hide { display: none; }
+  @media (max-width: 1100px) { .bt .hide-n { display: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav data-sidebar="matters" data-name="Lena Hoffmann" data-role="Patent attorney" data-count=""></nav>
+  <main class="main"><section class="panel fixed"><div id="root"></div></section></main>
+</div>
+<div class="proto" id="proto"></div>
+<script src="frame.js"></script>
+<script>
+// PROTOTYPE, throwaway. Question: what should the Applications page look like as a mirror of the MyEPO application data?
+// Two variants (?variant=A|B). The rows are the 8 applications of the EPO sandbox answer GET /applications (recorded
+// 2026-11-09). The sandbox recording has the bibliographic data, the due dates and the pending fees of ONE application
+// (EPC EP00000001); the prototype shows that one record for each application. State is in memory only.
+const D = {"apps": [{"procedure": "EPC", "number": "EP00000001.8", "filingDate": "2024-06-06", "reference": "Applicant reference 1", "portfolioId": "111", "portfolioName": "Portfolio Name 1"}, {"procedure": "UPP", "number": "EP00000001.8", "filingDate": "2024-05-10", "reference": "Applicant reference 2", "portfolioId": "111", "portfolioName": "Portfolio Name 1"}, {"procedure": "EPC", "number": "EP00000002.6", "filingDate": "2023-06-06", "reference": "Applicant reference 3", "portfolioId": "222", "portfolioName": "Portfolio Name 2"}, {"procedure": "UPP", "number": "EP00000002.6", "filingDate": "2022-01-13", "reference": "Applicant reference 4", "portfolioId": "222", "portfolioName": "Portfolio Name 2"}, {"procedure": "EPC", "number": "EP00000003.4", "filingDate": "2022-06-06", "reference": "Applicant reference 5", "portfolioId": "333", "portfolioName": "Portfolio Name 3"}, {"procedure": "UPP", "number": "EP00000003.4", "filingDate": "2022-03-03", "reference": "Applicant reference 6", "portfolioId": "333", "portfolioName": "Portfolio Name 3"}, {"procedure": "EPC", "number": "EP00000008.3", "filingDate": "2023-05-13", "reference": "Applicant reference 7", "portfolioId": "444", "portfolioName": "Portfolio Name 4"}, {"procedure": "UPP", "number": "EP00000008.3", "filingDate": "2023-01-13", "reference": "Applicant reference 8", "portfolioId": "444", "portfolioName": "Portfolio Name 4"}], "biblio": {"titles": {"EN": "Dummy title EN", "DE": "Dummy title DE", "FR": "Dummy title FR"}, "applicants": ["Dummy applicant 1, Paris, FR"], "inventors": ["Dummy, Inventor1, Paris, FR", "Other, Inventor2, Paris, FR"], "representatives": ["Dummy Representative, Address Line 1, Address Line 2, Address Line 3, Address Line 4, DE"], "priorities": [{"office": "FR", "number": "FRA     123456", "date": "2014-02-01"}], "publications": [{"number": "EP123456 A1", "date": "2014-02-01"}], "ipc": ["dummySymbol"], "cpc": ["dummySymbol1", "dummySymbol2", "dummySymbol3"]}, "due": [{"termKey": "DUE_TERM_11", "dueDate": "2024-01-01", "actor": "actor1"}, {"termKey": "DUE_TERM_10", "dueDate": "2023-01-01", "actor": "actor2"}], "fees": [{"feeCode": "001", "amount": 123, "currency": null, "dueDate": "2024-01-01"}, {"feeCode": "002", "amount": 321, "currency": null, "dueDate": "2024-02-01"}, {"feeCode": "003", "amount": 999, "currency": null, "dueDate": "2024-03-01"}], "terms": {"DUE_TERM_73": "Remedy formal deficiency", "DUE_TERM_74": "Request decision (UP will lapse)", "DUE_TERM_75": "Seek redress against a negative decision", "DUE_TERM_27": "Seek redress against a negative decision", "DUE_TERM_76": "Seek redress against a negative decision on a request for re-establishment of rights", "DUE_TERM_72": "Seek redress against a negative decision on a request for re-establishment of rights", "DUE_TERM_2": "Incorporate by reference under Rule 20.5bis(d) PCT", "DUE_TERM_1": "Designate applicant", "DUE_TERM_3": "File certificate of exhibition", "DUE_TERM_7": "File certified copy of earlier application", "DUE_TERM_8": "File translation of earlier application", "DUE_TERM_10": "Request examination", "DUE_TERM_12": "Remedy deficiencies (claims)", "DUE_TERM_13": "Remedy deficiencies (inventor address)", "DUE_TERM_14": "Remedy deficiencies (designation of inventor)", "DUE_TERM_15": "File application number and/or certified copy of priority document (grace period)", "DUE_TERM_16": "File translation of application documents (grace period)", "DUE_TERM_22": "File designation of inventor(s) or remedy related major deficiency", "DUE_TERM_77": "File missing parts referred to in description", "DUE_TERM_32": "Withdraw late-filed missing parts to avoid redating", "DUE_TERM_33": "Seek redress against redating", "DUE_TERM_44": "File translation of priority document", "DUE_TERM_69": "Remedy deficiencies (sequence listing)", "DUE_TERM_71": "File translation of application in an EPO official language", "DUE_TERM_50": "Remedy deficiencies (request for examination)", "DUE_TERM_52": "Remedy deficiencies (missing application documents)", "DUE_TERM_60": "Remedy deficiencies (designation of inventor)", "DUE_TERM_61": "Remedy deficiencies (designation of inventor)", "DUE_TERM_65": "Remedy deficiencies (certified copy of priority)", "DUE_TERM_66": "Remedy deficiencies (translation of priority)", "DUE_TERM_68": "Remedy deficiencies (translation of application)", "DUE_TERM_4": "Reply to invitation about subject matter for search", "DUE_TERM_78": "Indicate subject-matter for search (Rules 62a(1) and 63(1) EPC)", "DUE_TERM_79": "Respond to non-unity search report", "DUE_TERM_17": "Remedy deficiencies (formal deficiency)", "DUE_TERM_81": "Remedy deficiencies (formal deficiency)", "DUE_TERM_31": "Confirm maintenance of application", "DUE_TERM_9": "Respond to extended European search report", "DUE_TERM_41": "Remedy deficiencies (Patent Prosection Highway)", "DUE_TERM_40": "Reply to communication under Rules 161(1) and 162 EPC", "DUE_TERM_49": "Remedy deficiencies (response to extended European search report)", "DUE_TERM_62": "Remedy deficiencies (confirmation of maintenance)", "DUE_TERM_64": "Remedy deficiencies (response to international search opinion)", "DUE_TERM_11": "Reply to communication in examination", "DUE_TERM_18": "Remedy formal deficiency", "DUE_TERM_21": "Reply to communication about intention to grant", "DUE_TERM_39": "File prior art (Article 124 EPC)", "DUE_TERM_45": "File copy of search results or related statement (Rule 70b EPC)", "DUE_TERM_46": "File translation of priority document", "DUE_TERM_51": "Remedy deficiencies (reply to examination report)", "DUE_TERM_53": "Remedy deficiencies (formal deficiency)", "DUE_TERM_59": "Remedy deficiencies (intention to grant)", "DUE_TERM_63": "Remedy deficiencies (prior art (Article 124 EPC))", "DUE_TERM_67": "Remedy deficiencies (copy of search results or statement (Rule 70b EPC))", "DUE_TERM_70": "Reply re intention to stay proceedings", "DUE_TERM_82": "File translation of document or of reply to communication", "DUE_TERM_24": "Seek redress against noting of loss of rights", "DUE_TERM_26": "Seek redress against partial loss of rights", "DUE_TERM_28": "Seek redress against refusal of application", "DUE_TERM_30": "Request a decision following rejection of request for further processing", "DUE_TERM_80": "Remedy deficiencies (translation of application)", "DUE_TERM_19": "Appoint a professional representative", "DUE_TERM_20": "File authorisation for professional representative", "DUE_TERM_54": "Remedy deficiencies (appointment of professional representative)", "DUE_TERM_55": "Remedy deficiencies (appointment of professional representative)", "DUE_TERM_56": "Remedy deficiencies (appointment of professional representative)", "DUE_TERM_58": "Remedy deficiencies (appointment of professional representative)", "DUE_TERM_57": "Remedy deficiencies (appointment of professional representative)", "DUE_TERM_25": "Seek redress against interlocutory decision to maintain patent in amended form", "DUE_TERM_29": "Seek redress against decision to revoke patent", "DUE_TERM_37": "File observations on opposition", "DUE_TERM_38": "Respond to examination report in opposition – all parties", "DUE_TERM_42": "File translations of claims following interlocutory decision to maintain in amended form", "DUE_TERM_43": "File typed amendments", "DUE_TERM_5": "Remedy deficiencies (request for limitation)", "DUE_TERM_23": "Respond to limitation report", "DUE_TERM_47": "File translation of claims amended in limitation procedure", "DUE_TERM_48": "Seek redress against rejection of request for limitation", "DUE_TERM_6": "Remedy deficiencies (request for revocation)", "DUE_TERM_34": "File translation of appeal grounds", "DUE_TERM_35": "File appeal grounds", "DUE_TERM_36": "File translation of request for appeal"}, "portfolios": [{"id": "1", "name": "Applicant Portfolio 1", "type": "applicant", "full": true}, {"id": "2", "name": "Representative Portfolio 1", "type": "representative", "full": true}, {"id": "3", "name": "Association Portfolio 1", "type": "association", "full": true}, {"id": "4", "name": "Applicant Portfolio 2", "type": "applicant", "full": false}, {"id": "5", "name": "Representative Portfolio 2", "type": "representative", "full": false}, {"id": "6", "name": "Association Portfolio 2", "type": "association", "full": false}]};
+const I = {
+  inbox: '<path d="M2.5 9.5 4.5 3.5h7l2 6v3h-11z"/><path d="M2.5 9.5h3l1 1.5h3l1-1.5h3"/>', mail: '<rect x="2.5" y="3.5" width="11" height="9" rx="1.5"/><path d="m3 4.5 5 4 5-4"/>',
+  back: '<path d="M10 4 6 8l4 4"/>', expand: '<path d="M9.5 3h3.5v3.5M6.5 13H3V9.5M13 3 9 7M3 13l4-4"/>', shrink: '<path d="M13 6.5H9.5V3M3 9.5h3.5V13M9.5 6.5 13 3M6.5 9.5 3 13"/>', minus: '<path d="M4 8h8"/>', plus: '<path d="M8 4v8M4 8h8"/>',
+  flag: '<circle cx="8" cy="8" r="5.6" stroke-dasharray="2.2 1.6"/><circle cx="8" cy="8" r="1.6"/>', folder: '<path d="M2.5 4.5h4l1.5 1.5h5.5v6.5h-11z"/>',
+  search: '<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/>', x: '<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>', download: '<path d="M8 3v7M5 7l3 3 3-3"/><path d="M3 11v2h10v-2"/>',
+  ext: '<path d="M9 3h4v4M13 3 7.5 8.5M11.5 9.5v3.5h-9v-9h3.5"/>', up: '<path d="M4.5 9.5 8 6l3.5 3.5"/>', down: '<path d="M4.5 6.5 8 10l3.5-3.5"/>', info: '<circle cx="8" cy="8" r="5.75"/><path d="M8 7.5v3.5M8 5.2v.1"/>',
+};
+const ico = n => `<svg class="p-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${I[n]}</svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const date = iso => { const [y, m, d] = iso.split('-'); return `${Number(d)} ${MO[m - 1]} ${y}`; };
+const int = n => n.toLocaleString('en-GB');
+const TODAY = '2026-11-15';
+const line = (html, cls = '') => `<span data-cut dir="auto" class="${cls}">${html}</span>`;
+function cut() { for (const el of document.querySelectorAll('[data-cut]')) { const over = el.scrollWidth > el.clientWidth + 1; el.classList.toggle('is-cut', over); if (over) el.title = el.textContent; else el.removeAttribute('title'); } }
+
+// ---- data sets ----
+const key = a => `${a.procedure}:${a.number}`;
+const detailOf = () => ({ biblio: D.biblio, due: D.due, fees: D.fees, state: 'ok' });
+const DEMO = D.apps.map(a => ({ ...a, detail: detailOf() }));
+const W = (o, detail) => ({ procedure: 'EPC', portfolioId: '2', portfolioName: 'Representative Portfolio 1', ...o, detail });
+const longApplicants = ['Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung e.V., Hansastraße 27c, 80686 München, DE', 'Koninklijke Philips N.V., High Tech Campus 52, 5656 AG Eindhoven, NL', '株式会社日立ハイテクノロジーズ, 東京都港区, JP', 'Commissariat à l’Énergie Atomique et aux Énergies Alternatives, Paris, FR', 'شركة سابك للابتكار البلاستيكي, الرياض, SA'];
+const WORST = [
+  W({ number: 'EP23771920.8', filingDate: '2023-09-12', reference: 'SIEMENS_HEALTHINEERS_2023P00123WOEP01_DIVISIONAL_02_FORTSETZUNG' }, { state: 'ok', biblio: { titles: { EN: 'Apparatus, system and method for position encoding of a rotary shaft by means of a scale having a plurality of periodically arranged markings, and computer program product, storage medium and control device therefor', DE: 'Vorrichtung, System und Verfahren zur Positionscodierung einer Drehwelle mittels eines Maßstabs mit einer Vielzahl periodisch angeordneter Markierungen', FR: 'Appareil, système et procédé de codage de position' }, applicants: longApplicants, inventors: Array.from({ length: 14 }, (_, i) => `Wiśniewska-Kowalczyk, Aleksandra Maria ${i + 1}, Kraków, PL`), representatives: ['Vossius & Partner Patentanwälte Rechtsanwälte mbB, Siebertstraße 3, 81675 München, DE'], priorities: [{ office: 'DE', number: '102022123456.7', date: '2022-09-14' }, { office: 'US', number: '63/375,481', date: '2022-09-13' }, { office: 'JP', number: '2022-145678', date: '2022-09-14' }], publications: [{ number: 'EP4338765 A1', date: '2024-03-20' }, { number: 'WO2024056789 A1', date: '2024-03-21' }], ipc: ['G01D5/347', 'G01D5/244', 'G01B11/26'], cpc: Array.from({ length: 18 }, (_, i) => `G01D5/${3470 + i}`) }, due: [{ termKey: 'DUE_TERM_73', dueDate: '2025-01-13', actor: 'Applicant' }, { termKey: 'DUE_TERM_11', dueDate: '2026-11-16', actor: 'Representative' }, { termKey: 'DUE_TERM_UNKNOWN_99', dueDate: '2027-01-29', actor: null }], fees: [{ feeCode: '033', amount: 1915, currency: 'EUR', dueDate: '2026-11-30' }, { feeCode: '007', amount: 0, currency: null, dueDate: '2027-01-29' }, { feeCode: '501', amount: 12345678.9, currency: 'EUR', dueDate: '2025-03-31' }] }),
+  W({ procedure: 'UPP', number: 'EP23771920.8', filingDate: '2024-11-02', reference: 'A1', portfolioId: '1', portfolioName: 'Einspruchsverfahren – Mandant Fraunhofer – dringend bis Jahresende 2026' }, { state: 'ok', biblio: { titles: { DE: 'Maßstab' }, applicants: ['3M'], inventors: [], representatives: [], priorities: [], publications: [], ipc: [], cpc: [] }, due: [], fees: [] }),
+  W({ number: 'EP24166597.5', filingDate: '2024-03-27', reference: null, portfolioId: '5', portfolioName: 'Representative Portfolio 2' }, { state: 'no-permission' }),
+  W({ number: 'PCT/EP2023/087654', filingDate: '2023-12-21', reference: 'P2023-0456-EP-DIV2/WO-PCT/Mü-Kr (alt: 2019P12345WE01)' }, { state: 'failed', message: '400 ERR_30 Invalid procedure' }),
+  W({ number: 'EP99123456.7', filingDate: '1999-12-31', reference: 'M&S/"2021"/<07>' }, { state: 'ok', biblio: { titles: {}, applicants: ['Müller & Söhne <Patent> GmbH & Co. KGaA'], inventors: ['Đặng Thị Ngọc Hân, Hà Nội, VN'], representatives: [], priorities: [], publications: [], ipc: [], cpc: [] }, due: [{ termKey: 'DUE_TERM_74', dueDate: '2000-06-30', actor: 'Proprietor' }], fees: [] }),
+];
+const MANY = n => Array.from({ length: n }, (_, i) => { const b = (i % 4 ? DEMO : WORST)[i % 5]; const d = new Date(Date.UTC(2026, 9, 1) - i * 864e5 * 3); return { ...b, number: `EP${String(20000000 + i * 7919).slice(0, 8)}.${i % 10}`, reference: i % 9 === 0 ? null : `SF-${2026 - (i % 8)}-${String(i).padStart(4, '0')}`, filingDate: d.toISOString().slice(0, 10) }; });
+const DATASETS = { demo: 'Demo data', worst: 'Worst case', empty: 'Empty', one: 'One', many: '1,132 rows' };
+const url = new URLSearchParams(location.search);
+const dataKey = DATASETS[url.get('data')] ? url.get('data') : 'demo';
+const APPS = { demo: DEMO, worst: WORST, empty: [], one: WORST.slice(0, 1), many: MANY(1132) }[dataKey];
+const PORTFOLIOS = [...new Map(APPS.map(a => [a.portfolioId, { id: a.portfolioId, name: a.portfolioName }])).values()];
+
+// ---- state ----
+const VARIANTS = { A: 'Three panes (as Letters)', B: 'Docket table + side panel' };
+const PAGE = 100;
+const S = { variant: VARIANTS[url.get('variant')] ? url.get('variant') : 'A', sel: null, view: 'all', q: '', limit: PAGE, sort: 'filingDate', dir: 'descending', all: {} };
+const nextDue = a => (a.detail.state === 'ok' ? a.detail.due.map(d => d.dueDate).filter(d => d >= TODAY).sort()[0] ?? null : null);
+const titleOf = a => { const t = a.detail.state === 'ok' ? a.detail.biblio.titles : {}; return t.EN ?? t.DE ?? t.FR ?? null; };
+const applicantOf = a => (a.detail.state === 'ok' ? a.detail.biblio.applicants[0]?.split(',')[0] ?? null : null);
+const VIEWS = () => [{ id: 'all', label: 'All applications', test: () => true }, { id: 'EPC', label: 'European patent (EPC)', test: a => a.procedure === 'EPC' }, { id: 'UPP', label: 'Unitary patent (UPP)', test: a => a.procedure === 'UPP' }, ...PORTFOLIOS.map(p => ({ id: `p:${p.id}`, label: p.name, folder: true, test: a => a.portfolioId === p.id }))];
+const shown = () => { const v = VIEWS().find(x => x.id === S.view) ?? VIEWS()[0]; const q = S.q.trim().toLowerCase(); const list = APPS.filter(a => v.test(a) && (!q || [a.number, a.reference, titleOf(a), applicantOf(a), a.portfolioName].join(' ').toLowerCase().includes(q))); const val = a => ({ filingDate: a.filingDate, number: a.number, reference: a.reference ?? '', portfolio: a.portfolioName, title: titleOf(a) ?? '', due: nextDue(a) ?? '9999' }[S.sort]); return list.sort((x, y) => (val(x) < val(y) ? -1 : val(x) > val(y) ? 1 : 0) * (S.dir === 'ascending' ? 1 : -1)); };
+const count = v => APPS.filter(v.test).length;
+const none = '<span class="ap-none">None</span>';
+const proc = a => `<span class="ap-tag${a.procedure === 'UPP' ? ' upp' : ''}" title="${a.procedure === 'UPP' ? 'Unitary patent' : 'European patent'}">${a.procedure}</span>`;
+const dueCell = d => (d === null ? none : `<span class="p-num${d < TODAY ? ' ap-over' : ''}">${date(d)}</span>`);
+
+// ---- one application (shared) ----
+function few(items, id, max = 4) { if (items.length === 0) return none; const open = S.all[id]; const list = open ? items : items.slice(0, max); return `<ul class="ap-list">${list.map(x => `<li dir="auto">${esc(x)}</li>`).join('')}</ul>${items.length > max ? `<button class="ap-more" data-all="${id}">${open ? 'Show less' : `Show all ${items.length}`}</button>` : ''}`; }
+function application(a) {
+  if (!a) return `<div class="lt"><div class="p-empty"><div>${ico('folder')}<p>${APPS.length ? 'Select an application.' : 'No application to show.'}</p></div></div></div>`;
+  const d = a.detail, k = key(a);
+  const title = titleOf(a);
+  const head = `<div class="lt-top"><div class="lt-top-in">
+    <button class="p-btn ghost lt-crumb" data-act="close">${ico('back')}<span class="lbl">Applications</span></button>
+    <button class="p-btn icon ghost" data-act="prev" title="Previous (K)">${ico('up')}</button><button class="p-btn icon ghost" data-act="next" title="Next (J)">${ico('down')}</button>
+    <span class="sp"></span><button class="p-btn ghost" title="Open in MyEPO">${ico('ext')}<span class="lbl">Open in MyEPO</span></button>
+    <button class="p-btn icon ghost" data-act="close" title="Close (Esc)">${ico('x')}</button></div></div>`;
+  const top = `<div class="lt-tags">${proc(a)}<span class="p-tag" title="${esc(a.portfolioName)}">${esc(a.portfolioName)}</span></div>
+    <h2 class="p-wrap" dir="auto">${title ? esc(title) : `<span class="p-muted">${d.state === 'ok' ? 'No title' : 'Title not read'}</span>`}</h2>
+    <div class="lt-props"><div><div class="k">Application</div><div class="p-num p-wrap">${esc(a.number)}</div></div><div><div class="k">Your reference</div><div class="p-wrap" dir="auto">${a.reference ? esc(a.reference) : none}</div></div><div><div class="k">Filed</div><div class="p-num">${date(a.filingDate)}</div></div></div>`;
+  if (d.state !== 'ok') return `<div class="lt">${head}<div class="lt-scroll">${top}<div class="lt-note">${ico('info')}<span>${d.state === 'no-permission' ? 'The MyEPO account has no permission for the portfolio of this application. Your MyEPO administrator gives it in MyEPO, Applications and patents.' : `MyEPO gave no data for this application: ${esc(d.message)}`}</span></div></div></div>`;
+  const b = d.biblio;
+  const sec = (h, n, html, src = '') => `<div class="ap-sec"><h3>${h}${n === null ? '' : ` <span class="n">${n}</span>`}${src ? `<span class="ap-src">${src}</span>` : ''}</h3>${html}</div>`;
+  const dues = d.due.length === 0 ? `<p class="ap-none">The EPO lists no due date for this application.</p>` : `<table class="ap-t"><thead><tr><th>Due date</th><th>Term</th><th>Actor</th></tr></thead><tbody>${[...d.due].sort((x, y) => (x.dueDate < y.dueDate ? -1 : 1)).map(x => `<tr><td class="nw">${dueCell(x.dueDate)}${x.dueDate < TODAY ? ' <span class="ap-none">past</span>' : ''}</td><td>${D.terms[x.termKey] ? esc(D.terms[x.termKey]) : `<span class="ap-none">Unknown term (${esc(x.termKey)})</span>`}</td><td>${x.actor ? esc(x.actor) : none}</td></tr>`).join('')}</tbody></table>`;
+  const fees = d.fees.length === 0 ? `<p class="ap-none">No fee is pending.</p>` : `<table class="ap-t"><thead><tr><th>Due date</th><th>Fee code</th><th class="r">Amount</th></tr></thead><tbody>${d.fees.map(f => `<tr><td class="nw">${dueCell(f.dueDate)}</td><td>${esc(f.feeCode)}</td><td class="r nw p-num">${f.amount.toLocaleString('en-GB', { minimumFractionDigits: 2 })}${f.currency ? ` ${esc(f.currency)}` : ''}</td></tr>`).join('')}</tbody></table>`;
+  return `<div class="lt">${head}<div class="lt-scroll">${top}
+    ${sec('Due dates', d.due.length, dues, 'From the EPO, not checked by FlowLeap')}
+    ${sec('Pending fees', d.fees.length, fees, 'From the EPO')}
+    ${sec('Applicants', b.applicants.length, few(b.applicants, k + 'ap'))}
+    ${sec('Representative', null, few(b.representatives, k + 'rp'))}
+    ${sec('Inventors', b.inventors.length, few(b.inventors, k + 'in'))}
+    ${sec('Priorities', b.priorities.length, b.priorities.length ? `<table class="ap-t"><tbody>${b.priorities.map(p => `<tr><td class="nw">${esc(p.office)}</td><td>${esc(p.number)}</td><td class="nw p-num">${date(p.date)}</td></tr>`).join('')}</tbody></table>` : none)}
+    ${sec('Publications', b.publications.length, b.publications.length ? `<table class="ap-t"><tbody>${b.publications.map(p => `<tr><td>${esc(p.number)}</td><td class="nw p-num">${date(p.date)}</td></tr>`).join('')}</tbody></table>` : none)}
+    ${sec('Classes', null, `<div class="k p-muted">IPC</div>${few(b.ipc, k + 'ipc', 6)}<div class="k p-muted" style="margin-top:8px">CPC</div>${few(b.cpc, k + 'cpc', 6)}`)}
+    ${sec('Letters', null, `<p class="ap-none">The letters of this application in the Mailbox show here, with a link to the Letters page.</p>`)}
+  </div></div>`;
+}
+const search = () => `<label class="p-search">${ico('search')}<input id="q" placeholder="Find an application" value="${esc(S.q)}" autocomplete="off"></label>`;
+const emptyRows = () => `<div class="p-empty">${APPS.length ? 'No application matches.' : 'MyEPO lists no application for the portfolios of this account.'}</div>`;
+const moreBtn = (all, list) => (all.length > list.length ? `<button class="p-btn p-more" data-act="more">Show ${int(Math.min(PAGE, all.length - list.length))} more of ${int(all.length)}</button>` : '');
+
+// ---- variant A: three panes ----
+function VariantA() {
+  const v = VIEWS(), all = shown(), list = all.slice(0, S.limit), sel = APPS.find(a => key(a) === S.sel);
+  const f = x => `<button class="a-f${S.view === x.id ? ' on' : ''}" data-view="${x.id}">${ico(x.folder ? 'folder' : 'inbox')}${line(esc(x.label))}<span class="n p-num">${int(count(x))}</span></button>`;
+  return `<div class="a-wrap${sel ? ' has-sel' : ''}">
+  <div class="a-folders"><div class="a-fh">MyEPO applications</div>${v.filter(x => !x.folder).map(f).join('')}<div class="a-fh">Portfolios</div>${v.filter(x => x.folder).map(f).join('')}</div>
+  <div class="a-list"><div class="p-bar"><select class="a-select" id="view" aria-label="View">${v.map(x => `<option value="${x.id}"${S.view === x.id ? ' selected' : ''}>${esc(x.label)} (${int(count(x))})</option>`).join('')}</select>${search()}</div><div class="rows">${list.map(a => `<div class="ap-row2${key(a) === S.sel ? ' sel' : ''}" data-id="${esc(key(a))}">
+    ${line(a.reference ? esc(a.reference) : '<span class="p-muted">No reference</span>', 'ref')}<span>${proc(a)}</span>
+    ${line(titleOf(a) ? esc(titleOf(a)) : '<span class="p-muted">Title not read</span>')}<span class="p-muted p-num" style="font-size:12px">${date(a.filingDate)}</span>
+    ${line(`${esc(a.number)}${applicantOf(a) ? ` · ${esc(applicantOf(a))}` : ''}`, 'p-muted p-num')}<span>${nextDue(a) ? `<span class="p-muted" style="font-size:12px">Due ${date(nextDue(a))}</span>` : ''}</span></div>`).join('') || emptyRows()}${moreBtn(all, list)}</div></div>
+  <div class="a-read">${application(sel)}</div></div>`;
+}
+
+// ---- variant B: the docket as a table ----
+function VariantB() {
+  const all = shown(), list = all.slice(0, S.limit), sel = APPS.find(a => key(a) === S.sel);
+  const th = (id, label, cls = '') => `<th data-sort="${id}" class="${cls}"${S.sort === id ? ` aria-sort="${S.dir}"` : ''}>${label}</th>`;
+  return `<div class="p-bar"><h1>Applications</h1>${search()}${VIEWS().filter(x => !x.folder).map(x => `<button class="p-chip${S.view === x.id ? ' on' : ''}" data-view="${x.id}">${esc(x.label)} <span class="p-num">${int(count(x))}</span></button>`).join('')}
+    <select class="p-btn" id="view" aria-label="Portfolio" style="max-width:220px"><option value="all">Portfolio: all</option>${VIEWS().filter(x => x.folder).map(x => `<option value="${x.id}"${S.view === x.id ? ' selected' : ''}>${esc(x.label)} (${int(count(x))})</option>`).join('')}</select></div>
+  <div class="c-wrap${sel ? ' open' : ''}"><div class="b-apps">${list.length ? `<table class="bt"><thead><tr>${th('reference', 'Your reference')}${th('number', 'Application')}<th>Type</th>${th('title', 'Title', 'c-hide')}<th class="c-hide hide-n">Applicant</th>${th('portfolio', 'Portfolio', 'c-hide hide-n')}${th('filingDate', 'Filed')}${th('due', 'Next due date')}</tr></thead><tbody>${list.map(a => `<tr class="r${key(a) === S.sel ? ' sel' : ''}" data-id="${esc(key(a))}">
+    <td>${line(a.reference ? esc(a.reference) : none)}</td><td class="p-num">${line(esc(a.number))}</td><td>${proc(a)}</td>
+    <td class="c-hide">${line(titleOf(a) ? esc(titleOf(a)) : '<span class="ap-none">Not read</span>')}</td><td class="c-hide hide-n">${line(applicantOf(a) ? esc(applicantOf(a)) : none)}</td><td class="c-hide hide-n">${line(esc(a.portfolioName))}</td>
+    <td class="p-num">${date(a.filingDate)}</td><td>${dueCell(nextDue(a))}</td></tr>`).join('')}</tbody></table>${moreBtn(all, list)}` : emptyRows()}</div>
+  ${sel ? `<div class="c-side">${application(sel)}</div>` : ''}</div>`;
+}
+
+// ---- render and the switcher ----
+const root = document.getElementById('root'), proto = document.getElementById('proto');
+function render() {
+  const focused = document.activeElement?.id === 'q';
+  root.innerHTML = { A: VariantA, B: VariantB }[S.variant]();
+  cut();
+  if (focused) { const q = document.getElementById('q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+  proto.innerHTML = `<button data-v="-1">‹</button><span><b>${S.variant}</b> ${VARIANTS[S.variant]}</span><button data-v="1">›</button><span class="seg">${Object.entries(DATASETS).map(([k, w]) => `<a href="?${new URLSearchParams({ ...Object.fromEntries(url), data: k, variant: S.variant })}" class="${k === dataKey ? 'on' : ''}">${w}</a>`).join('')}</span><span class="st">PROTOTYPE · shown=${shown().length}/${APPS.length} · open=${S.sel ?? 'none'}</span>`;
+}
+const cycle = n => { const k = Object.keys(VARIANTS); S.variant = k[(k.indexOf(S.variant) + n + k.length) % k.length]; url.set('variant', S.variant); history.replaceState(null, '', `?${url}`); render(); };
+function step(n) { const list = shown(); if (!list.length) return; const i = list.findIndex(a => key(a) === S.sel); S.sel = key(list[Math.max(0, Math.min(list.length - 1, i < 0 ? 0 : i + n))]); render(); }
+document.addEventListener('click', e => {
+  const v = e.target.closest('[data-v]'); if (v) return cycle(Number(v.dataset.v));
+  const all = e.target.closest('[data-all]'); if (all) { S.all[all.dataset.all] = !S.all[all.dataset.all]; return render(); }
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (act === 'close') { S.sel = null; return render(); }
+  if (act === 'prev') return step(-1);
+  if (act === 'next') return step(1);
+  if (act === 'more') { S.limit += PAGE; return render(); }
+  const sort = e.target.closest('[data-sort]'); if (sort) { S.dir = S.sort === sort.dataset.sort && S.dir === 'ascending' ? 'descending' : 'ascending'; S.sort = sort.dataset.sort; return render(); }
+  const view = e.target.closest('[data-view]'); if (view) { S.view = view.dataset.view; S.limit = PAGE; return render(); }
+  const row = e.target.closest('[data-id]'); if (row) { S.sel = row.dataset.id; render(); }
+});
+document.addEventListener('input', e => { if (e.target.id === 'q') { S.q = e.target.value; S.limit = PAGE; render(); } });
+document.addEventListener('change', e => { if (e.target.id === 'view') { S.view = e.target.value; S.limit = PAGE; render(); } });
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input, select, textarea')) { if (e.key === 'Escape') e.target.blur(); return; }
+  if (e.key === 'ArrowLeft') cycle(-1); else if (e.key === 'ArrowRight') cycle(1);
+  else if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); step(1); }
+  else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
+  else if (e.key === 'Escape') { S.sel = null; render(); }
+  else if (e.key === '/') { e.preventDefault(); document.getElementById('q')?.focus(); }
+});
+addEventListener('resize', cut);
+render();
+</script>
+</body>
+</html>

@@ -79,7 +79,7 @@
     "@deepseek-ai/dsh-client-ui-flowleap-folder": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-records": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-routines": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-flowleap-letters": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-flowleap-myepo": "workspace:*",
     "@deepseek-ai/dsh-client-ui-flowleap-work-pages": "workspace:*",
     "@deepseek-ai/dsh-client-ui-settings-flowleap-connectors": "workspace:*",
     "@deepseek-ai/dsh-client-ui-settings-skills": "workspace:*",

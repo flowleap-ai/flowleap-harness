@@ -237,6 +237,97 @@ describe('the MyEPO Remote methods', () => {
     await expect(controller.myEpoMailbox(cancel.signal)).rejects.toBe(reason)
   })
 
+  it('reads the applications for the Applications page with the fields of the MyEPO list', async () => {
+    const { controller, epo } = await remote()
+    const signal = new AbortController().signal
+    expect(await controller.myEpoApplications(signal)).toEqual({ kind: 'not-linked' })
+    await controller.myEpoLink({ ...CREDENTIALS }, signal)
+    const docket = await controller.myEpoApplications(signal)
+    expect(docket).toMatchObject({ kind: 'read', total: 8 })
+    const applications = docket.kind === 'read' ? docket.applications : []
+    expect(applications).toHaveLength(8)
+    // One number has a European patent row and a unitary patent row.
+    expect(applications.slice(0, 2)).toEqual([
+      {
+        procedure: 'EPC', number: 'EP00000001', numberWithCheckDigit: 'EP00000001.8', filingDate: '2024-06-06',
+        fileReference: 'Applicant reference 1', portfolioId: '111', portfolioName: 'Portfolio Name 1',
+      },
+      {
+        procedure: 'UPP', number: 'EP00000001', numberWithCheckDigit: 'EP00000001.8', filingDate: '2024-05-10',
+        fileReference: 'Applicant reference 2', portfolioId: '111', portfolioName: 'Portfolio Name 1',
+      },
+    ])
+    // An application with no file reference, and an account with no portfolio permission.
+    const row = (reference: string | undefined) => ({
+      bibliographicData: { applicationIdentification: { procedure: 'EPC', ipOfficeCode: 'EP', applicationNumber: 'EP00000009', applicationNumberMyEpo: 'EP00000009.1', filingDate: '2025-01-02' } },
+      ...reference === undefined ? {} : { applicantFileReference: reference }, portfolioId: '9', portfolioName: 'Nine', procedure: 'EPC',
+    })
+    epo.answer('/applications?page=0&size=50', () => json(200, { content: [row(undefined)], number: 0, size: 50, totalElements: 1 }))
+    expect(await controller.myEpoApplications(signal)).toMatchObject({ kind: 'read', total: 1, applications: [{ number: 'EP00000009', fileReference: null }] })
+    epo.answer('/applications?page=0&size=50', () => json(403, { code: 'ERR_20', message: 'No permission' }))
+    expect(await controller.myEpoApplications(signal)).toMatchObject({ kind: 'read', total: 0, applications: [] })
+    epo.answer('/applications?page=0&size=50', () => json(500, {}))
+    expect(await controller.myEpoApplications(signal)).toEqual({ kind: 'unreachable' })
+  })
+
+  it('reads one application: its data, the EPO due dates with the words of their terms, and the pending fees', async () => {
+    const { controller, epo } = await remote()
+    const signal = new AbortController().signal
+    expect(await controller.myEpoApplication('EPC', 'EP00000001', signal)).toEqual({ kind: 'not-linked' })
+    await controller.myEpoLink({ ...CREDENTIALS }, signal)
+    const detail = await controller.myEpoApplication('EPC', 'EP00000001', signal)
+    expect(detail).toMatchObject({
+      kind: 'read',
+      titles: { EN: 'Dummy title EN', DE: 'Dummy title DE', FR: 'Dummy title FR' },
+      applicants: ['Dummy applicant 1, Paris, FR'],
+      inventors: ['Dummy, Inventor1, Paris, FR', 'Other, Inventor2, Paris, FR'],
+      publications: [{ office: 'EP', number: '123456', kind: 'A1', date: '2014-02-01' }],
+      priorities: [{ office: 'FR', number: 'FRA     123456', filingDate: '2014-02-01' }],
+      ipc: ['dummySymbol'],
+      cpc: ['dummySymbol1', 'dummySymbol2', 'dummySymbol3'],
+      fees: [
+        { feeCode: '001', amount: 123, currency: null, dueDate: '2024-01-01' },
+        { feeCode: '002', amount: 321, currency: null, dueDate: '2024-02-01' },
+        { feeCode: '003', amount: 999, currency: null, dueDate: '2024-03-01' },
+      ],
+    })
+    const dueDates = detail.kind === 'read' ? detail.dueDates : []
+    expect(dueDates.map(due => [due.termKey, due.dueDate, due.actor, due.description?.en])).toEqual([
+      ['DUE_TERM_11', '2024-01-01', 'actor1', 'Reply to communication in examination'],
+      ['DUE_TERM_10', '2023-01-01', 'actor2', 'Request examination'],
+    ])
+    // The terms are read once; a term key outside the EPO's list has no words; a fee can name its currency.
+    epo.answer('/EPC/applications/EP00000001/dueDates', () => json(200, {
+      applicationIdentification: { procedure: 'EPC', ipOfficeCode: 'EP', applicationNumber: '00000001', applicationNumberMyEPO: 'EP00000001.8', filingDate: '2014-01-01' },
+      dueDates: [{ termKey: 'DUE_TERM_NEW', dueDate: '2027-01-29', actor: 'Applicant' }],
+    }))
+    epo.answer('/EPC/applications/EP00000001/fees', () => json(200, [{ feeCode: '033', amount: 1915, currency: 'EUR', dueDate: '2026-11-30' }]))
+    expect(await controller.myEpoApplication('EPC', 'EP00000001', signal)).toMatchObject({
+      dueDates: [{ termKey: 'DUE_TERM_NEW', description: null }], fees: [{ feeCode: '033', currency: 'EUR' }],
+    })
+    expect(epo.calls.filter(call => call.url.endsWith('/terms'))).toHaveLength(1)
+  })
+
+  it('says why the EPO gave no data of an application, reads the terms again after a failure, and refuses another procedure or number', async () => {
+    const { controller, epo } = await remote()
+    const signal = new AbortController().signal
+    await controller.myEpoLink({ ...CREDENTIALS }, signal)
+    await expect(controller.myEpoApplication('PCT', 'EP00000001', signal)).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    await expect(controller.myEpoApplication('EPC', 'EP1', signal)).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    epo.answer('/terms', () => json(500, {}))
+    expect(await controller.myEpoApplication('EPC', 'EP00000001', signal)).toEqual({ kind: 'unreachable' })
+    epo.answer('/terms', () => json(200, []))
+    expect(await controller.myEpoApplication('EPC', 'EP00000001', signal)).toMatchObject({ kind: 'read', dueDates: [{ description: null }, { description: null }] })
+    expect(epo.calls.filter(call => call.url.endsWith('/terms'))).toHaveLength(2)
+    epo.answer('/biblio-data/UPP/applications/EP00000001', () => json(403, { code: 'ERR_20', message: 'No permission' }))
+    expect(await controller.myEpoApplication('UPP', 'EP00000001', signal)).toEqual({ kind: 'no-permission' })
+    epo.answer('/biblio-data/UPP/applications/EP00000001', () => json(400, { code: 'ERR_30', message: 'Invalid procedure' }))
+    expect(await controller.myEpoApplication('UPP', 'EP00000001', signal)).toEqual({ kind: 'failed', message: 'the EPO refused the read: 400 ERR_30 Invalid procedure' })
+    // A Mailbox read has no portfolio: a missing right reads as the EPO's error text.
+    epo.answer('/communications/folders', () => json(403, { code: 'ERR_20', message: 'No permission' }))
+    expect(await controller.myEpoMailbox(signal)).toMatchObject({ kind: 'failed' })
+  })
+
   it('downloads the PDF of a letter of the last Mailbox read, and refuses another id', async () => {
     const { controller, epo } = await remote()
     const signal = new AbortController().signal

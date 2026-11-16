@@ -1,6 +1,6 @@
 /** The letters and folders of the Letters specs: four letters of the recorded sandbox Mailbox, shortened. */
 import type { MyEpoFolderView, MyEpoLetterView, MyEpoMailboxView } from '@deepseek-ai/dsh-api-remotes/client'
-import type { Answer } from '../src/client/mailbox.ts'
+import type { Answer } from '../src/client/letters/mailbox.ts'
 
 export const FOLDERS: MyEpoFolderView[] = [{ id: 'drafts', name: 'Drafts' }, { id: 'pdfs', name: 'PDFs' }]
 

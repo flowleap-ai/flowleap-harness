@@ -9,13 +9,15 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from
 import {
   IconChevronDownOutlineRegular, IconChevronLeftOutlineRegular, IconChevronUpOutlineRegular, IconCloseOutlineRegular,
   IconDownloadOutlineRegular, IconFolderOpenOutlineRegular, IconFullscreenOutlineRegular, IconInfoOutlineRegular,
-  IconRightUpOutlineRegular, IconSearchOutlineRegular,
+  IconRightUpOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { MyEpoFolderView, MyEpoLetterView } from '@deepseek-ai/dsh-api-remotes/client'
-import type { NS } from './locales.ts'
-import { inView, shownLetters, type LetterPdf, type Mailbox, type MailboxFailure, type MailboxViewId } from './mailbox.ts'
+import type { NS } from '../locales/letters.ts'
+import { dateOf as dateIn } from '../shared/read.ts'
+import { isUnread, readCopy, SearchField, StaleNotice, Summary, Unread } from '../shared/ReadParts.tsx'
+import { inView, shownLetters, type LetterPdf, type Mailbox, type MailboxViewId } from './mailbox.ts'
 import css from './Letters.module.css'
 
 type T = TranslateNS<typeof NS>
@@ -42,9 +44,9 @@ function Line({ text, className = '' }: { text: string; className?: string | und
   )
 }
 
-/** A calendar date of the MyEPO list; the EPO writes it without a time zone. */
+/** A calendar date of the MyEPO list in the locale of the page. */
 function dateOf(t: T, date: string): string {
-  return new Intl.DateTimeFormat(t('time.locale'), { dateStyle: 'medium', timeZone: 'UTC' }).format(Date.parse(date))
+  return dateIn(t('time.locale'), date)
 }
 
 /** The title of a letter, or the document code when the EPO gave no title. */
@@ -55,17 +57,6 @@ function titleOf(t: T, letter: MyEpoLetterView): string {
 /** The name of the folder that holds a letter. */
 function folderOf(t: T, folders: readonly MyEpoFolderView[], letter: MyEpoLetterView): string {
   return folders.find(folder => folder.id === letter.folderId)?.name ?? t('folder.unknown')
-}
-
-/** The sentence of a read that gave no list. */
-function failureText(t: T, failure: MailboxFailure): string {
-  switch (failure.kind) {
-    case 'not-linked': return t('state.notLinked.body')
-    case 'refused': return t('state.refused')
-    case 'unreachable': return t('state.unreachable')
-    case 'failed':
-    case 'error': return t('state.failed', { message: failure.message })
-  }
 }
 
 /** The PDF of the open letter: the download in progress, why there is none, or the frame. */
@@ -84,7 +75,9 @@ export function LettersPage(props: LettersPageProps) {
   const { useMailbox, refresh, select, step, setView, setQuery, more, setWide, t } = props
   const snapshot = useMailbox(state => state)
   const [fullTitle, setFullTitle] = useState(false)
-  const { letters, folders, selected, wide, pdf, failure } = snapshot
+  const { letters, folders, selected, wide, pdf } = snapshot
+  const copy = readCopy(t)
+  const reread = (): void => { void refresh() }
   useEffect(() => { setFullTitle(false) }, [selected])
 
   const views: { id: MailboxViewId; label: string; folder: boolean }[] = [
@@ -110,20 +103,7 @@ export function LettersPage(props: LettersPageProps) {
     }
   }
 
-  if (snapshot.phase === 'loading') {
-    return <section className={css.page} aria-label={t('page.label')}><p className={css.state} role="status">{t('state.loading')}</p></section>
-  }
-  if (failure !== null && snapshot.readAt === null) {
-    return (
-      <section className={css.page} aria-label={t('page.label')}>
-        <div className={css.state} role="alert">
-          {failure.kind === 'not-linked' ? <h2>{t('state.notLinked.title')}</h2> : null}
-          <p>{failureText(t, failure)}</p>
-          <button type="button" className={css.button} disabled={snapshot.reading} onClick={() => { void refresh() }}>{t('act.refresh')}</button>
-        </div>
-      </section>
-    )
-  }
+  if (isUnread(snapshot)) return <Unread read={snapshot} copy={copy} classes={css} onRefresh={reread} />
 
   const viewButton = (view: (typeof views)[number]) => (
     <button key={view.id} type="button" className={css.view} aria-current={snapshot.view === view.id ? 'true' : undefined} onClick={() => { setView(view.id) }}>
@@ -134,7 +114,7 @@ export function LettersPage(props: LettersPageProps) {
   )
 
   return (
-    <section className={css.page} aria-label={t('page.label')} data-open={open === undefined ? undefined : ''} data-wide={open !== undefined && wide ? '' : undefined} onKeyDown={keys}>
+    <section className={css.page} aria-label={copy.page} data-open={open === undefined ? undefined : ''} data-wide={open !== undefined && wide ? '' : undefined} onKeyDown={keys}>
       <nav className={css.views} aria-label={t('views.label')}>
         <div className={css.viewsHead}>{t('source')}</div>
         {views.filter(view => !view.folder).map(viewButton)}
@@ -147,18 +127,10 @@ export function LettersPage(props: LettersPageProps) {
           <select className={css.viewSelect} aria-label={t('views.label')} value={snapshot.view} onChange={(event) => { setView(event.target.value as MailboxViewId) }}>
             {views.map(view => <option key={view.id} value={view.id}>{`${view.label} (${count(view.id)})`}</option>)}
           </select>
-          <label className={css.search}>
-            <IconSearchOutlineRegular size={16} />
-            <input type="search" value={snapshot.query} placeholder={t('search.placeholder')} aria-label={t('search.placeholder')} onChange={(event) => { setQuery(event.target.value) }} />
-          </label>
+          <SearchField value={snapshot.query} label={t('search.placeholder')} classes={css} onChange={setQuery} />
         </div>
-        <div className={css.summary}>
-          <span>{t('summary', { total: number.format(snapshot.total), unread: count('unread') })}</span>
-          <button type="button" className={css.link} disabled={snapshot.reading} onClick={() => { void refresh() }}>{t('act.refresh')}</button>
-        </div>
-        {failure !== null && snapshot.readAt !== null
-          ? <p className={css.notice} role="alert">{failureText(t, failure)} {t('state.stale', { time: new Intl.DateTimeFormat(t('time.locale'), { dateStyle: 'medium', timeStyle: 'short' }).format(Date.parse(snapshot.readAt)) })}</p>
-          : null}
+        <Summary text={t('summary', { total: number.format(snapshot.total), unread: count('unread') })} read={snapshot} copy={copy} classes={css} onRefresh={reread} />
+        <StaleNotice read={snapshot} copy={copy} classes={css} />
         <ul className={css.rows} aria-label={t('list.label')}>
           {rows.map(letter => (
             <li key={letter.id}>

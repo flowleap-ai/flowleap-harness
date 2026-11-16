@@ -1128,6 +1128,8 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   MyEpoTestOutcome: 'the outcome of a MyEPO link or test is owned by packages/host/flowleap-connectors/README.md',
   MyEpoMailboxView: 'the MyEPO Mailbox for the Letters page is owned by packages/host/flowleap-connectors/README.md',
   MyEpoLetterPdf: 'the PDF of a MyEPO letter is owned by packages/host/flowleap-connectors/README.md',
+  MyEpoApplicationsView: 'the MyEPO applications for the Applications page are owned by packages/host/flowleap-connectors/README.md',
+  MyEpoApplicationDetailView: 'the data of one MyEPO application is owned by packages/host/flowleap-connectors/README.md',
   MyEpoPortfolio: 'one MyEPO portfolio is owned by packages/host/flowleap-connectors/README.md',
   MyEpoApplication: 'one application of the MyEPO portfolios is owned by packages/host/flowleap-connectors/README.md',
   MyEpoApplicationQuery: 'the filters of a MyEPO application read is owned by packages/host/flowleap-connectors/README.md',
