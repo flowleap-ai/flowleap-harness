@@ -97,7 +97,7 @@ describe('master-only platform scheduling', () => {
 
   it('keeps the required Python PR verdict and its two x64 targets in CI Python', () => {
     const pr = workflow('ci-python.yml')
-    expect(Object.keys(pr.on)).toEqual(['pull_request'])
+    expect(Object.keys(pr.on)).toEqual(['pull_request', 'push'])
     expect(pr.jobs['python-runtime']!.if).toBeUndefined()
     expect(pr.jobs['python-runtime']).toMatchObject({
       needs: 'python-sdk',
