@@ -60,6 +60,8 @@ describe('the Letters page', () => {
     for (const [failure, text] of [
       [{ kind: 'refused' }, en['state.refused']],
       [{ kind: 'unreachable' }, 'MyEPO did not answer.'],
+      [{ kind: 'no-access' }, en['state.noAccess']],
+      [{ kind: 'not-read' }, en['state.notRead']],
       [{ kind: 'failed', message: 'ERR_15' }, 'MyEPO answered with an error: ERR_15'],
       [{ kind: 'error', message: 'connection lost' }, 'MyEPO answered with an error: connection lost'],
     ] as const) {
@@ -176,6 +178,10 @@ describe('the Letters page', () => {
     expect(screen.getByRole('alert').textContent).toBe('MyEPO gave no PDF for this letter. the EPO did not answer')
     expect(screen.queryByRole('link', { name: 'Open in MyEPO' })).toBeNull()
     expect([...container.querySelectorAll('dl > div')].slice(0, 3).map(item => item.textContent)).toEqual(['ApplicationNone', 'Your referenceNone', 'ApplicantNone'])
+    cleanup()
+    page({ selected: 'grant', pdf: { id: 'grant', status: 'none' } })
+    expect(screen.getByRole('status').textContent).toBe('FlowLeap has no copy of this letter. Open it in MyEPO.')
+    expect(screen.getByRole('link', { name: 'Open in MyEPO' })).toBeTruthy()
     cleanup()
     page({ selected: 'lost', pdf: null })
     expect(screen.getByText('Unknown folder')).toBeTruthy()

@@ -1,14 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { MyEpoLetterPdf, MyEpoMailboxView } from '@deepseek-ai/dsh-api-remotes/client'
-import { createMailbox, inView, PAGE_SIZE, shownLetters, type Answer, type MailboxDependencies } from '../src/client/letters/mailbox.ts'
+import type { MyEpoMailboxView } from '@deepseek-ai/dsh-api-remotes/client'
+import {
+  createMailbox, inView, PAGE_SIZE, shownLetters, type Answer, type LetterDownload, type MailboxDependencies,
+} from '../src/client/letters/mailbox.ts'
 import { failed, FOLDERS, LETTERS, ok, READ } from './letters-fixture.client.ts'
 
-const PDF: MyEpoLetterPdf = { fileName: 'letter.pdf', pdf: new Uint8Array([37, 80, 68, 70]) }
+const PDF: LetterDownload = { fileName: 'letter.pdf', pdf: new Uint8Array([37, 80, 68, 70]), marksRead: true }
 
 function bench(overrides: Partial<MailboxDependencies> = {}) {
   const deps = {
     read: vi.fn(() => Promise.resolve(ok<MyEpoMailboxView>(READ))),
-    download: vi.fn((_id: string) => Promise.resolve(ok(PDF))),
+    download: vi.fn((_id: string) => Promise.resolve(ok<LetterDownload | null>(PDF))),
     createUrl: vi.fn((_pdf: Uint8Array) => 'blob:letter'),
     revokeUrl: vi.fn(),
     ...overrides,
@@ -93,9 +95,9 @@ describe('the Letters page model', () => {
   })
 
   it('says why a letter has no PDF, and drops a download that another letter overtook', async () => {
-    const answers = new Map<string, (answer: Answer<MyEpoLetterPdf>) => void>()
+    const answers = new Map<string, (answer: Answer<LetterDownload | null>) => void>()
     const { deps, mailbox, state } = bench({
-      download: vi.fn((id: string) => new Promise<Answer<MyEpoLetterPdf>>((resolve) => { answers.set(id, resolve) })),
+      download: vi.fn((id: string) => new Promise<Answer<LetterDownload | null>>((resolve) => { answers.set(id, resolve) })),
     })
     await mailbox.refresh()
     const first = mailbox.select('grant')
@@ -110,6 +112,17 @@ describe('the Letters page model', () => {
     // A failed PDF has no address to release.
     mailbox.dispose()
     expect(deps.revokeUrl).not.toHaveBeenCalled()
+  })
+
+  it('shows the copy of the firm without a change of the read state, and says when the firm has no copy', async () => {
+    const copies = new Map<string, LetterDownload | null>([['grant', { ...PDF, marksRead: false }], ['lost', null]])
+    const { mailbox, state } = bench({ download: vi.fn((id: string) => Promise.resolve(ok(copies.get(id) as LetterDownload | null))) })
+    await mailbox.refresh()
+    await mailbox.select('grant')
+    expect(state().pdf).toEqual({ id: 'grant', status: 'ready', url: 'blob:letter', fileName: 'letter.pdf' })
+    expect([state().letters.find(letter => letter.id === 'grant')?.read, state().opened]).toEqual([false, []])
+    await mailbox.select('lost')
+    expect(state().pdf).toEqual({ id: 'lost', status: 'none' })
   })
 
   it('steps through the shown list and stops at its ends', async () => {

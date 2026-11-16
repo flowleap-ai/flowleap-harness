@@ -1,12 +1,12 @@
 /**
- * The Letters page state over the `flowleapConnectors` Remote: the last answer of `myEpoMailbox()`, the view and the
- * text that filter it, the open letter and its PDF. The state lives in the page only; nothing here writes to MyEPO.
- * Opening a letter downloads its PDF, and the EPO then shows the letter as read.
+ * The Letters page state: the last read of the Mailbox, the view and the text that filter it, the open letter and its
+ * PDF. The state lives in the page only; nothing here writes to MyEPO. Opening a letter gets its PDF; after a download
+ * from MyEPO, the EPO shows the letter as read.
  */
 
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
-import { createPageStore, readList, type Answer, type ReadFailure, type ReadSnapshot } from '../shared/read.ts'
-import type { MyEpoFolderView, MyEpoLetterPdf, MyEpoLetterView, MyEpoMailboxView } from '@deepseek-ai/dsh-api-remotes/client'
+import { createPageStore, readList, type Answer, type EpoFailure, type ReadFailure, type ReadSnapshot } from '../shared/read.ts'
+import type { MyEpoFolderView, MyEpoLetterView, MyEpoMailboxView } from '@deepseek-ai/dsh-api-remotes/client'
 
 /** A view of the list: every letter, the unread ones, the ones not handled, or one Mailbox folder. */
 export type MailboxViewId = 'all' | 'unread' | 'open' | `folder:${string}`
@@ -19,6 +19,17 @@ export type LetterPdf =
   | { readonly id: string; readonly status: 'loading' }
   | { readonly id: string; readonly status: 'ready'; readonly url: string; readonly fileName: string }
   | { readonly id: string; readonly status: 'failed'; readonly message: string }
+  /** The firm has no copy of the letter; the person opens it in MyEPO. */
+  | { readonly id: string; readonly status: 'none' }
+
+/** The PDF that a download gave. */
+export interface LetterDownload {
+  /** The file name that the EPO gave the PDF. */
+  readonly fileName: string
+  readonly pdf: Uint8Array
+  /** Whether the download made MyEPO show the letter as read: true for a download from MyEPO, false for the firm's copy. */
+  readonly marksRead: boolean
+}
 
 /** What the page renders. */
 export interface MailboxSnapshot extends ReadSnapshot {
@@ -45,10 +56,10 @@ export type { Answer } from '../shared/read.ts'
 
 /** What the model needs from the browser and the Host. */
 export interface MailboxDependencies {
-  /** `flowleapConnectors.myEpoMailbox()`. */
-  readonly read: () => Promise<Answer<MyEpoMailboxView>>
-  /** `flowleapConnectors.myEpoLetterPdf(id)`. */
-  readonly download: (id: string) => Promise<Answer<MyEpoLetterPdf>>
+  /** Read the Mailbox: from MyEPO through the Host, or the firm's copy. */
+  readonly read: () => Promise<Answer<MyEpoMailboxView | EpoFailure>>
+  /** Get the PDF of one letter; `null` when the firm has no copy of it. */
+  readonly download: (id: string) => Promise<Answer<LetterDownload | null>>
   /** Make an address for PDF bytes that a frame can show. */
   readonly createUrl: (pdf: Uint8Array) => string
   /** Release an address of {@link MailboxDependencies.createUrl}. */
@@ -141,9 +152,19 @@ export function createMailbox(deps: MailboxDependencies): Mailbox {
       publish({ pdf: { id, status: 'failed', message: answer.error.message } })
       return
     }
+    const download = answer.value
+    if (download === null) {
+      publish({ pdf: { id, status: 'none' } })
+      return
+    }
+    const pdf = { id, status: 'ready', url: deps.createUrl(download.pdf), fileName: download.fileName } as const
+    if (!download.marksRead) {
+      publish({ pdf })
+      return
+    }
     const wasUnread = store.get().letters.some(letter => letter.id === id && !letter.read)
     publish({
-      pdf: { id, status: 'ready', url: deps.createUrl(answer.value.pdf), fileName: answer.value.fileName },
+      pdf,
       letters: store.get().letters.map(letter => (letter.id === id ? { ...letter, read: true } : letter)),
       opened: wasUnread ? [...store.get().opened, id] : store.get().opened,
     })

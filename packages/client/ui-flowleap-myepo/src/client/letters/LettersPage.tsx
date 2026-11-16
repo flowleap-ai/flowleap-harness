@@ -62,6 +62,7 @@ function folderOf(t: T, folders: readonly MyEpoFolderView[], letter: MyEpoLetter
 /** The PDF of the open letter: the download in progress, why there is none, or the frame. */
 function Pdf({ pdf, t }: { pdf: LetterPdf; t: T }) {
   if (pdf.status === 'loading') return <p className={css.pdfNote} role="status">{t('pdf.loading')}</p>
+  if (pdf.status === 'none') return <p className={css.pdfNote} role="status">{t('pdf.none')}</p>
   if (pdf.status === 'failed') return <p className={css.pdfNote} role="alert">{t('pdf.failed', { message: pdf.message })}</p>
   return <iframe className={css.pdf} src={pdf.url} title={t('pdf.title')} />
 }

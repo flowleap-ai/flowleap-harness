@@ -19,6 +19,10 @@ export interface ReadCopy {
   readonly notLinked: string
   readonly refused: string
   readonly unreachable: string
+  /** The sentence for a person who does not have the MyEPO pages. */
+  readonly noAccess: string
+  /** The sentence while the firm has no copy of the data. */
+  readonly notRead: string
   /** The sentence for an error answer, with the EPO's message. */
   readonly failed: (message: string) => string
   /** The sentence that the list is as old as a time. */
@@ -32,7 +36,7 @@ export interface ReadCopy {
 /** The keys of {@link ReadCopy} in the dictionary of a page. */
 type ReadKey =
   | 'page.label' | 'state.loading' | 'state.notLinked.title' | 'state.notLinked.body' | 'state.refused' | 'state.unreachable'
-  | 'state.failed' | 'state.stale' | 'act.refresh' | 'time.locale'
+  | 'state.noAccess' | 'state.notRead' | 'state.failed' | 'state.stale' | 'act.refresh' | 'time.locale'
 
 /**
  * The copy of a list read from the dictionary of a page.
@@ -47,6 +51,8 @@ export function readCopy(t: (key: ReadKey, params?: Record<string, string>) => s
     notLinked: t('state.notLinked.body'),
     refused: t('state.refused'),
     unreachable: t('state.unreachable'),
+    noAccess: t('state.noAccess'),
+    notRead: t('state.notRead'),
     failed: message => t('state.failed', { message }),
     stale: time => t('state.stale', { time }),
     refresh: t('act.refresh'),
@@ -71,6 +77,8 @@ export function failureText(copy: ReadCopy, failure: ReadFailure): string {
     case 'not-linked': return copy.notLinked
     case 'refused': return copy.refused
     case 'unreachable': return copy.unreachable
+    case 'no-access': return copy.noAccess
+    case 'not-read': return copy.notRead
     case 'failed':
     case 'error': return copy.failed(failure.message)
   }

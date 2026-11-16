@@ -30,6 +30,7 @@ import {
   createMyEpoClient, createRequestGate, describeFailure, MyEpoError, testMyEpoLink,
   type MyEpoCredentials, type MyEpoEndpoint, type RequestGate,
 } from './myepo-client.ts'
+import { copyMyEpoToRecord, createMyEpoMirror, type MyEpoMirror } from './myepo-mirror.ts'
 import { createMyEpoLetterIntake, MyEpoIntakeError, readMyEpoLetters, type MyEpoLetterIntake } from './myepo-reader.ts'
 import type { MyEpoCommunicationId } from './myepo-wire.ts'
 import type { MyEpoPortfolioView, MyEpoTestOutcome } from './types.ts'
@@ -204,7 +205,10 @@ export function createMyEpoWorker(options: MyEpoWorkerOptions): MyEpoWorker {
   }
   let written = ''
   let schedule: Schedule | undefined
-  let intake: MyEpoLetterIntake | undefined
+  /** The Firm Record: the letter intake and the copy for the MyEPO pages, made when the intake token is read. */
+  let record: { readonly intake: MyEpoLetterIntake; readonly mirror: MyEpoMirror } | undefined
+  /** Whether the Firm Record answered that it has no MyEPO copy paths: logged once. */
+  let noMirror = false
   /** Letters that the Firm Record has: no new send while this process runs. */
   const settled = new Set<MyEpoCommunicationId>()
 
@@ -306,17 +310,35 @@ export function createMyEpoWorker(options: MyEpoWorkerOptions): MyEpoWorker {
     }
   }
 
+  /**
+   * Copy the Mailbox and the applications into the Firm Record for the MyEPO pages. A Firm Record of an earlier version
+   * has no copy paths (404): the letters go on, and the log says once that the pages have no data.
+   */
+  const copy = async (link: SavedLink, mirror: MyEpoMirror): Promise<void> => {
+    try {
+      const pass = await copyMyEpoToRecord({ reads: clientOf(link), mirror, now, signal: abort.signal })
+      for (const { application, reason } of pass.noDetail) log(`application ${application.procedure} ${application.number}: MyEPO gave no data: ${reason}`)
+      if (noMirror) log('the Firm Record takes the copy for the MyEPO pages again')
+      noMirror = false
+    } catch (error) {
+      if (!(error instanceof MyEpoIntakeError) || error.status !== 404) throw error
+      if (!noMirror) log('the Firm Record has no paths for the copy of the MyEPO pages; update the Firm Record')
+      noMirror = true
+    }
+  }
+
   const read = async (link: SavedLink, due: Schedule): Promise<void> => {
-    if (intake === undefined) {
+    if (record === undefined) {
       const token = (await readSecretFile(join(config.dir, 'intake-token')))?.trim()
       if (token === undefined || token === '') {
         fail('the intake token of the Firm Record is missing')
         return
       }
-      intake = createMyEpoLetterIntake({ url: config.recordUrl, token, fetch: options.fetch })
+      const target = { url: config.recordUrl, token, fetch: options.fetch }
+      record = { intake: createMyEpoLetterIntake(target), mirror: createMyEpoMirror(target) }
     }
     try {
-      const pass = await readMyEpoLetters({ reads: clientOf(link), intake, mode: config.download, now, settled })
+      const pass = await readMyEpoLetters({ reads: clientOf(link), intake: record.intake, mode: config.download, now, settled })
       for (const { id, answer, listOnly } of pass.delivered) {
         log(`letter ${id}: ${answer.state}${answer.matter === null ? '' : ` on ${answer.matter}`}${answer.reason === null ? '' : ` (${answer.reason})`}${listOnly ? ', list data only' : ''}`)
       }
@@ -325,6 +347,7 @@ export function createMyEpoWorker(options: MyEpoWorkerOptions): MyEpoWorker {
       update({ lastReadAt: iso(), failure: pass.failed.length === 0 ? null : status.failure })
       if (pass.failed.length > 0) fail(`${pass.failed.length} letters were not taken; the next read tries again`)
       due.failedReads = 0
+      await copy(link, record.mirror)
     } catch (error) {
       if (error instanceof MyEpoError && error.failure.kind === 'refused') {
         update({ link: 'refused' })

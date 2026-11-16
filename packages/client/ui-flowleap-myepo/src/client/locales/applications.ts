@@ -77,6 +77,8 @@ export const en = {
   'state.notLinked.body': 'Link MyEPO in Settings, Connectors. The applications of your firm then show here.',
   'state.refused': 'MyEPO refused the stored credentials. Test the link in Settings, Connectors.',
   'state.unreachable': 'MyEPO did not answer.',
+  'state.noAccess': 'Your administrator has not given you the MyEPO pages. Ask the administrator of your firm.',
+  'state.notRead': 'FlowLeap has not copied this data from MyEPO yet. Read again in some minutes.',
   'state.failed': 'MyEPO answered with an error: {message}',
   'state.stale': 'The list shows MyEPO as of {time}.',
 } as const
@@ -155,6 +157,8 @@ export const zh = {
   'state.notLinked.body': '请在“设置”的“连接器”中关联 MyEPO。之后贵所的申请会显示在这里。',
   'state.refused': 'MyEPO 拒绝了已保存的凭据。请在“设置”的“连接器”中测试关联。',
   'state.unreachable': 'MyEPO 没有响应。',
+  'state.noAccess': '管理员尚未向您开放 MyEPO 页面。请联系贵所的管理员。',
+  'state.notRead': 'FlowLeap 尚未从 MyEPO 复制这些数据。请几分钟后再读取。',
   'state.failed': 'MyEPO 返回了错误：{message}',
   'state.stale': '列表显示的是 {time} 的 MyEPO。',
 } satisfies Record<FlowleapApplicationsKey, string>
@@ -230,6 +234,8 @@ export const ja = {
   'state.notLinked.body': '「設定」の「コネクタ」で MyEPO を連携してください。事務所の出願がここに表示されます。',
   'state.refused': 'MyEPO は保存された認証情報を拒否しました。「設定」の「コネクタ」で連携をテストしてください。',
   'state.unreachable': 'MyEPO が応答しませんでした。',
+  'state.noAccess': '管理者が MyEPO ページをまだ許可していません。事務所の管理者に依頼してください。',
+  'state.notRead': 'FlowLeap はまだ MyEPO からこのデータをコピーしていません。数分後にもう一度読み込んでください。',
   'state.failed': 'MyEPO がエラーを返しました：{message}',
   'state.stale': '一覧は {time} 時点の MyEPO です。',
 } satisfies Record<FlowleapApplicationsKey, string>
@@ -305,6 +311,8 @@ export const es = {
   'state.notLinked.body': 'Vincule MyEPO en Ajustes, Conectores. Las solicitudes de su despacho se muestran entonces aquí.',
   'state.refused': 'MyEPO rechazó las credenciales guardadas. Pruebe el vínculo en Ajustes, Conectores.',
   'state.unreachable': 'MyEPO no respondió.',
+  'state.noAccess': 'El administrador no le ha dado las páginas de MyEPO. Pídaselas al administrador de su despacho.',
+  'state.notRead': 'FlowLeap todavía no ha copiado estos datos de MyEPO. Vuelva a leer dentro de unos minutos.',
   'state.failed': 'MyEPO respondió con un error: {message}',
   'state.stale': 'La lista muestra MyEPO a fecha de {time}.',
 } satisfies Record<FlowleapApplicationsKey, string>
@@ -380,6 +388,8 @@ export const fr = {
   'state.notLinked.body': 'Reliez MyEPO dans Paramètres, Connecteurs. Les demandes de votre cabinet s’affichent alors ici.',
   'state.refused': 'MyEPO a refusé les identifiants enregistrés. Testez la liaison dans Paramètres, Connecteurs.',
   'state.unreachable': 'MyEPO n’a pas répondu.',
+  'state.noAccess': 'L’administrateur ne vous a pas donné les pages MyEPO. Demandez-les à l’administrateur de votre cabinet.',
+  'state.notRead': 'FlowLeap n’a pas encore copié ces données depuis MyEPO. Relisez dans quelques minutes.',
   'state.failed': 'MyEPO a répondu par une erreur : {message}',
   'state.stale': 'La liste montre MyEPO au {time}.',
 } satisfies Record<FlowleapApplicationsKey, string>
@@ -455,6 +465,8 @@ export const de = {
   'state.notLinked.body': 'Verbinden Sie MyEPO unter Einstellungen, Konnektoren. Dann stehen hier die Anmeldungen Ihrer Kanzlei.',
   'state.refused': 'MyEPO hat die gespeicherten Zugangsdaten abgelehnt. Testen Sie die Verbindung unter Einstellungen, Konnektoren.',
   'state.unreachable': 'MyEPO hat nicht geantwortet.',
+  'state.noAccess': 'Der Administrator hat Ihnen die MyEPO-Seiten nicht freigegeben. Fragen Sie den Administrator Ihrer Kanzlei.',
+  'state.notRead': 'FlowLeap hat diese Daten noch nicht aus MyEPO kopiert. Lesen Sie in einigen Minuten erneut.',
   'state.failed': 'MyEPO hat mit einem Fehler geantwortet: {message}',
   'state.stale': 'Die Liste zeigt MyEPO mit Stand {time}.',
 } satisfies Record<FlowleapApplicationsKey, string>
@@ -530,6 +542,8 @@ export const ru = {
   'state.notLinked.body': 'Подключите MyEPO в разделе «Настройки», «Коннекторы». После этого заявки вашей фирмы появятся здесь.',
   'state.refused': 'MyEPO отклонил сохранённые учётные данные. Проверьте подключение в разделе «Настройки», «Коннекторы».',
   'state.unreachable': 'MyEPO не ответил.',
+  'state.noAccess': 'Администратор не открыл вам страницы MyEPO. Обратитесь к администратору вашей фирмы.',
+  'state.notRead': 'FlowLeap ещё не скопировал эти данные из MyEPO. Повторите чтение через несколько минут.',
   'state.failed': 'MyEPO ответил ошибкой: {message}',
   'state.stale': 'Список показывает MyEPO по состоянию на {time}.',
 } satisfies Record<FlowleapApplicationsKey, string>
@@ -605,6 +619,8 @@ export const pt = {
   'state.notLinked.body': 'Vincule o MyEPO em Configurações, Conectores. Os pedidos do seu escritório aparecem então aqui.',
   'state.refused': 'O MyEPO recusou as credenciais salvas. Teste o vínculo em Configurações, Conectores.',
   'state.unreachable': 'O MyEPO não respondeu.',
+  'state.noAccess': 'O administrador não lhe deu as páginas do MyEPO. Peça ao administrador do seu escritório.',
+  'state.notRead': 'O FlowLeap ainda não copiou estes dados do MyEPO. Leia novamente em alguns minutos.',
   'state.failed': 'O MyEPO respondeu com um erro: {message}',
   'state.stale': 'A lista mostra o MyEPO em {time}.',
 } satisfies Record<FlowleapApplicationsKey, string>

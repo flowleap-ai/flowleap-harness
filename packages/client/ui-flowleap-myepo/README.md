@@ -7,7 +7,7 @@ kind: "package-reference"
 
 ## Summary
 
-The package holds the pages that mirror MyEPO: each page shows what the EPO has for the firm, as the EPO gives it. **Letters** shows each letter of the MyEPO Mailbox with its folders and its PDF. **Applications** shows the docket of the firm with the data, the EPO due dates and the pending fees of the open application. No page uses the document code table or the deadline engine. The pages read through the `flowleapConnectors` Remote of [`flowleap-connectors`](../../host/flowleap-connectors/README.md) with the stored MyEPO link.
+The package holds the pages that mirror MyEPO: each page shows what the EPO has for the firm, as the EPO gives it. **Letters** shows each letter of the MyEPO Mailbox with its folders and its PDF. **Applications** shows the docket of the firm with the data, the EPO due dates and the pending fees of the open application. A single-user installation reads MyEPO through the `flowleapConnectors` Remote of [`flowleap-connectors`](../../host/flowleap-connectors/README.md). A firm installation reads the copy in the Firm Record, which only a person with the MyEPO pages gets.
 
 ## Table of Contents
 
@@ -24,6 +24,17 @@ The package holds the pages that mirror MyEPO: each page shows what the EPO has 
 ## Use this package
 
 Mount the row in a web composition with the `flowleap-connectors` Host row; the [`dsh-flowleap-web`](../../bundle/flowleap-web/README.md) bundle does this under the id `ui-flowleap-myepo`. The plugin waits for `remote.flowleapConnectors` and registers the launchers `flowleap-letters` and `flowleap-applications`. The link to MyEPO is made on the MyEPO card of Settings, Connectors.
+
+The plugin asks the Host route `api/flowleap/records-link` once where the Firm Record is. With no Firm Record, each read is a call of the `flowleapConnectors` Remote, as the tables below say. With a Firm Record, each read is a `GET` below `<records>api/myepo/` through the firm's sign-in:
+
+| Read | Firm Record path | Answer |
+|---|---|---|
+| The Mailbox | `mailbox` | the letters and the folders of the last copy with its time |
+| The PDF of a letter | `letters/<id>/content` | the firm's copy of the PDF; `404 no-copy` when the firm has none, and the page then says to open the letter in MyEPO |
+| The applications | `applications` | the list of the last copy with its time |
+| One application | `applications/<procedure>/<number>` | the data, the EPO due dates and the pending fees of the last copy |
+
+The firm worker makes the copy at each of its reads (`copyMyEpoToRecord` of `flowleap-connectors`). A page says `FlowLeap has not copied this data from MyEPO yet` before the first copy (`not-read`), and `Your administrator has not given you the MyEPO pages` when the Firm Record refuses the person (`403 no-myepo-access`). An administrator gives the pages to a person on the Users page of the Firm admin console; the console refuses a person who is screened on a matter, because the pages show each letter and each application of the firm. Opening a letter of the copy does not change MyEPO: the firm worker downloaded it at its arrival.
 
 When MyEPO is not linked, refuses the stored credentials, does not answer or answers with an error, a page says which and offers **Read again**. After a read that answered, a failed read keeps the last list with its time.
 
@@ -81,7 +92,9 @@ The Applications page is not the Matters page: it shows what the EPO has, not th
 
 Each page has one model with one snapshot. `createPageStore` holds the snapshot and starts the first list read when the first observer arrives. `readList` runs a list read and records its outcome; a failed read keeps the list of the last read that answered. The state is in the page only. Nothing is stored in the browser or on the Host, and nothing here writes to MyEPO.
 
-`createMailbox` (Letters) adds the view and the text that filter the list, the row limit, the open letter, the wide flag, the PDF state and the letters this page opened while unread. `select` releases the address of the last PDF, downloads the new one, and drops an answer that another `select` overtook. The PDF bytes become an object address (`URL.createObjectURL`) for the frame and the download link; the plugin releases it when its fiber is disposed. The read flag of a letter changes because the EPO sets it at a download.
+`installationSource` (`shared/sources.ts`) chooses the source of the four reads once: `recordSource` when the Host names a Firm Record, else `remoteSource`. `recordSource` validates each JSON answer and turns the two refusals that it knows into page states.
+
+`createMailbox` (Letters) adds the view and the text that filter the list, the row limit, the open letter, the wide flag, the PDF state and the letters this page opened while unread. `select` releases the address of the last PDF, downloads the new one, and drops an answer that another `select` overtook. The PDF bytes become an object address (`URL.createObjectURL`) for the frame and the download link; the plugin releases it when its fiber is disposed. The read flag of a letter changes only after a download from MyEPO (`marksRead`), because the EPO sets it then.
 
 `createDocket` (Applications) adds the data read for each application by its key (`<procedure>:<number>`), the filters, the sort and the open application. After each change it reads the data of the wanted applications that have none: the open one, then the shown rows up to the row limit, one call at a time. A new list read starts a new epoch and drops an answer for the older list. A failed data read stays failed until the person asks for it again. The Host reads the term descriptions (`GET /terms`) once and puts the words on each due date.
 
@@ -92,11 +105,12 @@ Copy is in the namespaces `flowleapLetters` and `flowleapApplications` in zh, en
 | [`src/index.ts`](src/index.ts) | Host half: an empty plugin body |
 | [`src/client/index.ts`](src/client/index.ts) | dictionaries, the two models over the Remote, and the four registrations |
 | [`src/client/shared/read.ts`](src/client/shared/read.ts) | the page store, the list read with its outcomes, the date format |
+| [`src/client/shared/sources.ts`](src/client/shared/sources.ts) | the two sources of the reads: MyEPO through the Host, or the copy in the Firm Record |
 | [`src/client/shared/ReadParts.tsx`](src/client/shared/ReadParts.tsx) | the page before its list is read, the stale notice, the search field and the summary line |
 | [`src/client/letters/`](src/client/letters/) | the Mailbox model, the Letters page and its launcher glyph |
 | [`src/client/applications/`](src/client/applications/) | the docket model, the Applications page and its launcher glyph |
 | [`src/client/locales/`](src/client/locales/) | the dictionaries of the two pages |
-| [`tests/`](tests/) | the models over fake Remote calls, the pages as rendered over fixed states, and the registrations with their disposal |
+| [`tests/`](tests/) | the models over fake Remote calls, the two sources over a fake Remote and a fake Firm Record, the pages as rendered over fixed states, and the registrations with their disposal |
 
 </details>
 
@@ -124,10 +138,12 @@ None.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Single-user installation only** — the pages read MyEPO with the link of this app instance. On a firm installation the runtime of a person holds no MyEPO credential, so a page says that MyEPO is not linked. A firm needs the lists from the Firm Record, which does not store the applicant, the recipient, the read and handled flags or the folders of a letter yet.
-- **No walls** — a page shows each letter and each application of the account to the person of the instance. The Firm Record path must decide what a person outside the team of a matter, or a screened person, sees.
+- **The pages are outside the walls** — a page shows each letter and each application of the firm, also of a matter whose team the person is not in. So a firm gives the pages to a person explicitly, and a person who is screened on a matter cannot have them. A filter that hides only the screened matters is not built.
+- **The copy of a firm is as old as the last read of the firm worker** — by default 15 minutes for the Mailbox and the list of applications. The data of the applications is copied 20 applications at each read, so a long docket fills over hours, and a row shows `Not read` until then.
+- **A firm has the PDF only of a letter that arrived unhandled** — the firm worker downloads a letter when it arrives. An older, handled letter has no copy, and the page says to open it in MyEPO.
+- **The launchers show for each person of a firm** — a person without the MyEPO pages sees the two launchers and the sentence that the administrator has not given the pages.
 - **One switch for the two pages** — the two pages are one plugin row, so the row turns both on or off.
-- **Opening a letter marks it as read** — each open of a letter downloads its PDF, and the EPO then shows the letter as read for the firm.
+- **Opening a letter marks it as read on a single-user installation** — each open of a letter downloads its PDF from MyEPO, and the EPO then shows the letter as read.
 - **At most 500 letters and 2,000 applications** — one read returns the first entries of a MyEPO list; the page says when the list holds more. The views, the counts and the search work on the read entries only.
 - **EPO due dates are not checked** — Applications shows the due dates as the EPO gives them. The deadline engine did not compute or check them, and the MyEPO sandbox gives placeholder dates.
 - **Three EPO requests for each application** — the data, the due dates and the fees of a row are read one row at a time at the request rate of the connector. A long docket fills slowly, and a sort by next due date changes as rows arrive.
