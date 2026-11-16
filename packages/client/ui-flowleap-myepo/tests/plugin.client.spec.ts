@@ -106,11 +106,11 @@ describe('ui-flowleap-myepo browser half', () => {
     const { ctx, connectors } = await pluginContext()
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    const letters = ctx.slots.entries('main')[0]!.inject!() as Mailbox
+    const hooks = ctx.slots.entries('main')[0]!.inject!().hooks as Mailbox['hooks']
     // No page is open: the timer reads nothing.
     await vi.advanceTimersByTimeAsync(AUTO_READ_MS)
     expect(connectors.myEpoMailbox).not.toHaveBeenCalled()
-    const stop = letters.hooks.mailbox.subscribe(() => {})
+    const stop = hooks.mailbox.subscribe(() => {})
     await vi.advanceTimersByTimeAsync(0)
     expect(connectors.myEpoMailbox).toHaveBeenCalledTimes(1)
     await vi.advanceTimersByTimeAsync(AUTO_READ_MS)
