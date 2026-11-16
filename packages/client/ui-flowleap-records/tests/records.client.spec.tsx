@@ -167,6 +167,7 @@ describe('ui-flowleap-records browser half', () => {
     injected.refresh()
     expect(await injected.perform([])).toEqual({ failed: [] })
     expect(injected.contentHref('a'.repeat(64) as DocumentId)).toBe(`records/api/documents/${'a'.repeat(64)}/content`)
+    expect(typeof (await injected.letterText('a'.repeat(64) as DocumentId, new AbortController().signal)).ok).toBe('boolean')
     injected.hooks.ask.getSnapshot()!.start('About matter FL-2026-0001, Rule 71(3) communication: Which deadline applies?')
     expect(started).toEqual([[undefined, { prompt: 'About matter FL-2026-0001, Rule 71(3) communication: Which deadline applies?', whenDraftExists: 'append' }]])
     expect(menus.map(menu => menu.target)).toEqual(['records.intake-row', 'records.work-row'])
