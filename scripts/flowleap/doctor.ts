@@ -33,12 +33,13 @@ import { text } from 'node:stream/consumers'
 import { parseArgs } from 'node:util'
 import { load as loadYaml } from 'js-yaml'
 
-/** The four connectors and the record fields each one stores, as `packages/host/flowleap-connectors/src/types.ts` declares them. */
+/** The five connectors and the record fields each one stores, as `packages/host/flowleap-connectors/src/types.ts` declares them. */
 const CONNECTOR_FIELDS: Readonly<Record<string, readonly string[]>> = {
   'epo-ops': ['consumerKey', 'consumerSecret'],
   'uspto-odp': ['apiKey'],
   'semantic-scholar': ['apiKey'],
   mistral: ['apiKey'],
+  dpma: ['username', 'password'],
 }
 
 /** The record scope the host plugin writes under. */

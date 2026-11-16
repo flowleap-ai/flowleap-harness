@@ -64,6 +64,7 @@ export function createFakeHost(options: FakeHostOptions = {}): FakeHost {
 		usptoOdp: hostCredentials<'usptoOdp'>({ apiKey: 'house-odp-key' }),
 		semanticScholar: hostCredentials<'semanticScholar'>({}),
 		mistral: { status: 'missing' },
+		dpma: { status: 'missing' },
 		...options.credentials,
 	};
 	const store = new Map<string, unknown>();

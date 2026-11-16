@@ -34,6 +34,7 @@ import * as opsAuth from './ops/auth.js';
 import * as direct from './ops/direct.js';
 import * as opsFetch from './ops/fetch.js';
 import * as throttle from './ops/throttle.js';
+import * as dpma from './dpma/client.js';
 import * as odpAuth from './uspto-odp/auth.js';
 import * as documents from './uspto-odp/documents.js';
 import * as enrichment from './uspto-odp/enrichment.js';
@@ -58,6 +59,7 @@ export type {
 	UsptoOdpCredentials,
 	SemanticScholarCredentials,
 	MistralCredentials,
+	DpmaCredentials,
 	PatentOffice,
 } from './host.js';
 export { officeOf } from './host.js';
@@ -129,6 +131,9 @@ export { BIBLIO_CACHE_TTL_SECONDS, EPO_CACHE_TTL_SECONDS } from './ops/direct.js
 export type { GetBiblioOptions, SearchPatentsOptions, GetFigurePageOptions } from './ops/direct.js';
 export * from './uspto-odp/index.js';
 export { throwIfUserKeyRejected, isUSPTOOdpConfigured as odpLookupIsConfigured, type OdpCredentialLookup } from './uspto-odp/auth.js';
+export { DPMA_BASE_URL, type DpmaCredentialLookup } from './dpma/client.js';
+export * from './dpma/types.js';
+export { parseDpmaHitList, parseDpmaRegisterRecord } from './dpma/wire.js';
 export { KEY_REJECTED_REASON } from './academic-search/reasons.js';
 export { ACADEMIC_RESPONSE_SHAPE_VERSION, buildArxivQuery, mergeRanked, parseArxivXML } from './academic-search/index.js';
 export type {
@@ -329,7 +334,23 @@ function ocrClient(ctx: ConnectorContext) {
 	});
 }
 
+/**
+ * DPMAconnectPlus, patents and utility models: public register data of the
+ * German office on the host's `dpma` credential. The clients report no
+ * `upstream_call`: no trial budget covers the DPMA.
+ */
+function dpmaClient(ctx: ConnectorContext) {
+	return bindAll(ctx, {
+		getVersion: dpma.getDpmaVersion,
+		searchRegister: dpma.searchDpmaRegister,
+		getRegisterInfo: dpma.getDpmaRegisterInfo,
+		getRegisterExtract: dpma.getDpmaRegisterExtract,
+		resolveDpmaCredentials: dpma.resolveDpmaCredentials,
+	});
+}
+
 export type OpsClient = ReturnType<typeof opsClient>;
+export type DpmaClient = ReturnType<typeof dpmaClient>;
 export type OdpClient = ReturnType<typeof odpClient>;
 export type AcademicClient = ReturnType<typeof academicClient>;
 export type FulltextClient = ReturnType<typeof fulltextClient>;
@@ -349,6 +370,8 @@ export interface Connectors {
 	readonly openalex: OpenalexClient;
 	/** Mistral OCR on the host's `mistral` credential (ADR 0019 C3a). */
 	readonly ocr: OcrClient;
+	/** DPMAconnectPlus register data of DE patents and utility models. */
+	readonly dpma: DpmaClient;
 }
 
 /**
@@ -367,5 +390,6 @@ export function createConnectors(host: ConnectorHost): Connectors {
 		fulltext: fulltextClient(context),
 		openalex: openalexClient(context),
 		ocr: ocrClient(context),
+		dpma: dpmaClient(context),
 	};
 }

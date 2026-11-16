@@ -326,6 +326,12 @@ export class FlowleapConnectorsController extends TypertRemoteService {
         const verdict = await this.connectors.ocr.verifyKey()
         return { ok: verdict.ok, message: `${label}: ${verdict.message}` }
       }
+      case 'dpma': {
+        const result = await this.connectors.dpma.getVersion()
+        return result.ok
+          ? { ok: true, message: `${label}: register service ${result.data} answered` }
+          : { ok: false, message: `${label}: ${result.error.message}` }
+      }
     }
   }
 
