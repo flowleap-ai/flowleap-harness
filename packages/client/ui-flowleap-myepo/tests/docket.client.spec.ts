@@ -144,6 +144,67 @@ describe('the Applications page model', () => {
     await vi.waitFor(() => { expect(state().data[KEYS[0]]).toEqual({ status: 'ready', detail: DETAIL }) })
   })
 
+  it('keeps the read data on an update, drops the data of an application that left the list, and reads the open one again', async () => {
+    const shorter = { ...LIST, applications: APPLICATIONS.slice(0, 3), total: 3 }
+    const lists = [LIST]
+    const { deps, docket, state, settled } = bench({ list: () => Promise.resolve(ok<MyEpoApplicationsView>(lists.shift() ?? shorter)) })
+    await docket.update()
+    expect(deps.list).not.toHaveBeenCalled()
+    const stop = docket.hooks.docket.subscribe(() => {})
+    await settled()
+    await vi.waitFor(() => { expect(Object.keys(state().data).length).toBe(4) })
+    expect(deps.read).toHaveBeenCalledTimes(4)
+
+    // No application is open: the update reads the list only.
+    await docket.update()
+    await settled()
+    expect(Object.keys(state().data)).toEqual(KEYS.slice(0, 3))
+    expect(deps.read).toHaveBeenCalledTimes(4)
+
+    // The open application is read again, and the panel changes only with the answer.
+    docket.select(KEYS[0])
+    const newer = { ...DETAIL, applicants: ['A new applicant'] }
+    deps.read.mockImplementationOnce(() => Promise.resolve(ok<MyEpoApplicationDetailView>(newer)))
+    await docket.update()
+    expect(deps.read).toHaveBeenCalledTimes(5)
+    expect(state().data[KEYS[0]]).toEqual(ready(newer))
+
+    // A failed read of the open application keeps its data; an application that left the list is not read.
+    deps.read.mockImplementationOnce(() => Promise.resolve(failed('the EPO did not answer')))
+    await docket.update()
+    expect(state().data[KEYS[0]]).toEqual(ready(newer))
+    docket.select(KEYS[3])
+    await docket.update()
+    expect(deps.read).toHaveBeenCalledTimes(6)
+    stop()
+  })
+
+  it('reads no data on an update for an open application whose data is not ready, and drops an answer that a new list overtook', async () => {
+    const answers: ((answer: Answer<MyEpoApplicationDetailView>) => void)[] = []
+    const { deps, docket, state, settled } = bench()
+    const stop = docket.hooks.docket.subscribe(() => {})
+    await settled()
+    await vi.waitFor(() => { expect(Object.keys(state().data).length).toBe(4) })
+    docket.select(KEYS[0])
+    deps.read.mockImplementation(() => new Promise((resolve) => { answers.push(resolve) }))
+    const update = docket.update()
+    await vi.waitFor(() => { expect(answers.length).toBe(1) })
+    // Read again drops the data and starts a new list, so the answer of the update is for an older list.
+    const refresh = docket.refresh()
+    await vi.waitFor(() => { expect(answers.length).toBe(2) })
+    answers[0]!(ok<MyEpoApplicationDetailView>({ ...DETAIL, applicants: ['Late'] }))
+    await update
+    expect(state().data[KEYS[0]]).toEqual({ status: 'loading' })
+    // The data of the open application is on its way: an update does not read it a second time.
+    await docket.update()
+    expect(answers.length).toBe(2)
+    deps.read.mockImplementation(() => Promise.resolve(ok<MyEpoApplicationDetailView>(DETAIL)))
+    answers[1]!(ok<MyEpoApplicationDetailView>(DETAIL))
+    await refresh
+    await settled()
+    stop()
+  })
+
   it('steps through the shown list, stops at its ends, and closes the open application', async () => {
     const { docket, state, settled } = bench()
     // Nothing is listed before the first read.

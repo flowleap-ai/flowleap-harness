@@ -154,7 +154,17 @@ function OpenData({ data, t, copy, today, onRetry }: {
   const retry = <button type="button" className={css.button} onClick={onRetry}>{t('detail.retry')}</button>
   if (data.status === 'failed') return <div className={css.note} role="alert"><p>{t('detail.failed', { message: data.message })}</p>{retry}</div>
   const { detail } = data
-  if (detail.kind === 'read') return <Detail detail={detail} t={t} today={today} />
+  if (detail.kind === 'read') {
+    const copied = detail.readAt === undefined
+      ? null
+      : new Intl.DateTimeFormat(copy.locale, { dateStyle: 'medium', timeStyle: 'short' }).format(Date.parse(detail.readAt))
+    return (
+      <>
+        {copied === null ? null : <p className={css.note}>{t('detail.copied', { time: copied })}</p>}
+        <Detail detail={detail} t={t} today={today} />
+      </>
+    )
+  }
   if (detail.kind === 'no-permission') {
     return <p className={css.notice}><IconInfoOutlineRegular size={16} /><span>{t('detail.noPermission')}</span></p>
   }

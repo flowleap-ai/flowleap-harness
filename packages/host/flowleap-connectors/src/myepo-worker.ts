@@ -317,6 +317,8 @@ export function createMyEpoWorker(options: MyEpoWorkerOptions): MyEpoWorker {
   const copy = async (link: SavedLink, mirror: MyEpoMirror): Promise<void> => {
     try {
       const pass = await copyMyEpoToRecord({ reads: clientOf(link), mirror, now, signal: abort.signal })
+      if (pass.pdfs > 0) log(`${String(pass.pdfs)} read letters: the PDF is copied for the MyEPO pages`)
+      for (const { id, reason } of pass.noPdf) log(`letter ${id}: no PDF for the MyEPO pages: ${reason}`)
       for (const { application, reason } of pass.noDetail) log(`application ${application.procedure} ${application.number}: MyEPO gave no data: ${reason}`)
       if (noMirror) log('the Firm Record takes the copy for the MyEPO pages again')
       noMirror = false

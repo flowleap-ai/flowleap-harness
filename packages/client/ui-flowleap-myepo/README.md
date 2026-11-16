@@ -34,9 +34,11 @@ The plugin asks the Host route `api/flowleap/records-link` once where the Firm R
 | The applications | `applications` | the list of the last copy with its time |
 | One application | `applications/<procedure>/<number>` | the data, the EPO due dates and the pending fees of the last copy |
 
-The firm worker makes the copy at each of its reads (`copyMyEpoToRecord` of `flowleap-connectors`). A page says `FlowLeap has not copied this data from MyEPO yet` before the first copy (`not-read`), and `Your administrator has not given you the MyEPO pages` when the Firm Record refuses the person (`403 no-myepo-access`). An administrator gives the pages to a person on the Users page of the Firm admin console; the console refuses a person who is screened on a matter, because the pages show each letter and each application of the firm. Opening a letter of the copy does not change MyEPO: the firm worker downloaded it at its arrival.
+The firm worker makes the copy at each of its reads (`copyMyEpoToRecord` of `flowleap-connectors`). The side panel of an application says when the firm worker read its data (`Copied from MyEPO: …`). A page says `FlowLeap has not copied this data from MyEPO yet` before the first copy (`not-read`), and `Your administrator has not given you the MyEPO pages` when the Firm Record refuses the person (`403 no-myepo-access`). An administrator gives the pages to a person on the Users page of the Firm admin console; the console refuses a person who is screened on a matter, because the pages show each letter and each application of the firm. Opening a letter of the copy does not change MyEPO: the firm worker downloaded it at its arrival.
 
 When MyEPO is not linked, refuses the stored credentials, does not answer or answers with an error, a page says which and offers **Read again**. After a read that answered, a failed read keeps the last list with its time.
+
+An open page reads its list again by itself every 60 seconds while the window shows, and when the window shows again. The open letter with its PDF, the open application, the filters and the read data stay. The Applications page then also reads the data of the open application again, and changes the panel only with the answer. **Read again** reads at once; on the Applications page it also drops the data read so far.
 
 ### Letters
 
@@ -96,6 +98,8 @@ Each page has one model with one snapshot. `createPageStore` holds the snapshot 
 
 `createMailbox` (Letters) adds the view and the text that filter the list, the row limit, the open letter, the wide flag, the PDF state and the letters this page opened while unread. `select` releases the address of the last PDF, downloads the new one, and drops an answer that another `select` overtook. The PDF bytes become an object address (`URL.createObjectURL`) for the frame and the download link; the plugin releases it when its fiber is disposed. The read flag of a letter changes only after a download from MyEPO (`marksRead`), because the EPO sets it then.
 
+`update` of each model is the automatic read: it does nothing while no page observes the model. The plugin calls it from one timer (`AUTO_READ_MS`) and from `visibilitychange`.
+
 `createDocket` (Applications) adds the data read for each application by its key (`<procedure>:<number>`), the filters, the sort and the open application. After each change it reads the data of the wanted applications that have none: the open one, then the shown rows up to the row limit, one call at a time. A new list read starts a new epoch and drops an answer for the older list. A failed data read stays failed until the person asks for it again. The Host reads the term descriptions (`GET /terms`) once and puts the words on each due date.
 
 Copy is in the namespaces `flowleapLetters` and `flowleapApplications` in zh, en, ja, es, fr, de, ru and pt. `term.language` names the EPO term language of each Applications dictionary. A title, a party, a folder name and a portfolio name are data of the EPO and show as the EPO wrote them.
@@ -140,7 +144,8 @@ None.
 
 - **The pages are outside the walls** — a page shows each letter and each application of the firm, also of a matter whose team the person is not in. So a firm gives the pages to a person explicitly, and a person who is screened on a matter cannot have them. A filter that hides only the screened matters is not built.
 - **The copy of a firm is as old as the last read of the firm worker** — by default 15 minutes for the Mailbox and the list of applications. The data of the applications is copied 20 applications at each read, so a long docket fills over hours, and a row shows `Not read` until then.
-- **A firm has the PDF only of a letter that arrived unhandled** — the firm worker downloads a letter when it arrives. An older, handled letter has no copy, and the page says to open it in MyEPO.
+- **A firm gets the PDF of an older letter after some reads** — the firm worker downloads a letter when it arrives, and at each read the PDFs of at most 20 other letters that MyEPO shows as read. Until then, and for a letter whose PDF the EPO does not give or the Firm Record does not take (above 10 MB), the page says to open it in MyEPO. An unread letter that is already handled gets no PDF, because a download would mark it as read.
+- **The automatic read is every 60 seconds** — the interval is fixed. On a single-user installation each automatic read is a read of MyEPO.
 - **The launchers show for each person of a firm** — a person without the MyEPO pages sees the two launchers and the sentence that the administrator has not given the pages.
 - **One switch for the two pages** — the two pages are one plugin row, so the row turns both on or off.
 - **Opening a letter marks it as read on a single-user installation** — each open of a letter downloads its PDF from MyEPO, and the EPO then shows the letter as read.

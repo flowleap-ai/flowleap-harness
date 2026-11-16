@@ -49,6 +49,9 @@ export const APPLICATIONS_PANEL_ID = 'flowleap-applications' as MainPanelId
 /** Required services (cordis fiber inject); `remote.flowleapConnectors` parks the plugin until the Host serves the namespace. */
 export const inject = ['slots', 'locale', 'remote', 'remote.flowleapConnectors']
 
+/** The time between two automatic reads of an open page, in milliseconds. */
+export const AUTO_READ_MS = 60_000
+
 /** Today as an ISO calendar date in UTC. */
 const today = (): string => new Date().toISOString().slice(0, 10)
 
@@ -81,6 +84,21 @@ export function apply(ctx: ClientContext): void {
     read: source.application,
     today,
   })
+
+  // An open page follows its source: it reads again every minute while the window shows, and when the window shows again.
+  ctx.effect(() => {
+    const read = (): void => {
+      if (document.visibilityState !== 'visible') return
+      void mailbox.update()
+      void docket.update()
+    }
+    const timer = setInterval(read, AUTO_READ_MS)
+    document.addEventListener('visibilitychange', read)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', read)
+    }
+  }, 'ui-flowleap-myepo: automatic read')
 
   ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
     name: 'sidebar.panellist', id: LETTERS_PANEL_ID, order: -115, locale: letters.NS, label: () => lettersCopy('panel'),

@@ -6,7 +6,7 @@ import { stubConfigForm } from '@deepseek-ai/dsh-client-test-runtime'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
 import type { MyEpoApplicationDetailView } from '@deepseek-ai/dsh-api-remotes/client'
-import { apply, APPLICATIONS_PANEL_ID, inject, LETTERS_PANEL_ID } from '../src/client/index.ts'
+import { apply, APPLICATIONS_PANEL_ID, AUTO_READ_MS, inject, LETTERS_PANEL_ID } from '../src/client/index.ts'
 import { apply as applyNode, name } from '../src/index.ts'
 import type { Docket } from '../src/client/applications/docket.ts'
 import type { Mailbox } from '../src/client/letters/mailbox.ts'
@@ -98,6 +98,39 @@ describe('ui-flowleap-myepo browser half', () => {
     await vi.waitFor(() => { expect(docket.hooks.docket.getSnapshot().data[KEYS[3]]).toEqual({ status: 'ready', detail: DETAIL }) })
     await fiber.dispose()
     await ctx.fiber.dispose()
+  })
+
+  it('reads an open page again every minute and when the window shows again, not while the window is hidden, and stops on dispose', async () => {
+    vi.useFakeTimers()
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    const { ctx, connectors } = await pluginContext()
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const letters = ctx.slots.entries('main')[0]!.inject!() as Mailbox
+    // No page is open: the timer reads nothing.
+    await vi.advanceTimersByTimeAsync(AUTO_READ_MS)
+    expect(connectors.myEpoMailbox).not.toHaveBeenCalled()
+    const stop = letters.hooks.mailbox.subscribe(() => {})
+    await vi.advanceTimersByTimeAsync(0)
+    expect(connectors.myEpoMailbox).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(AUTO_READ_MS)
+    expect(connectors.myEpoMailbox).toHaveBeenCalledTimes(2)
+    expect(connectors.myEpoApplications).not.toHaveBeenCalled()
+    visibility.mockReturnValue('hidden')
+    await vi.advanceTimersByTimeAsync(AUTO_READ_MS)
+    expect(connectors.myEpoMailbox).toHaveBeenCalledTimes(2)
+    visibility.mockReturnValue('visible')
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(connectors.myEpoMailbox).toHaveBeenCalledTimes(3)
+    await fiber.dispose()
+    document.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(AUTO_READ_MS)
+    expect(connectors.myEpoMailbox).toHaveBeenCalledTimes(3)
+    stop()
+    await ctx.fiber.dispose()
+    vi.useRealTimers()
+    visibility.mockRestore()
   })
 
   it('registers key-identical dictionaries in eight locales for each page and releases them with its fiber', async () => {
