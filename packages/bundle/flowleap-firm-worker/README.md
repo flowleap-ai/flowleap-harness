@@ -7,7 +7,7 @@ kind: "package-bundle"
 
 ## Summary
 
-`dsh-flowleap-firm-worker` is the complete Cordis tree of the `flowleap-firm-worker` profile: the firm worker of [ADR 0003](../../../flowleap/docs/adr/0003-firm-state-rule.md), in its first, small form. It mounts one row, [`flowleap-myepo-worker`](../../host/flowleap-connectors/README.md#the-firm-workers-myepo-job), which tests the firm's MyEPO pair for the Firm admin console, reads the firm's Mailbox and sends each new letter to the intake of the Firm Record. The tree does not layer over `dsh-base`: it has no model provider, no tool, no agent loop, no chat store, no Web server and no listening port.
+`dsh-flowleap-firm-worker` is the complete Cordis tree of the `flowleap-firm-worker` profile: the firm worker of [ADR 0003](../../../flowleap/docs/adr/0003-firm-state-rule.md), in its first, small form. It mounts one row, [`flowleap-myepo-worker`](../../host/flowleap-connectors/README.md#the-firm-workers-myepo-job), which tests the firm's MyEPO pair for the Firm admin console, reads the firm's Mailbox, sends each new letter to the intake of the Firm Record, and copies the Mailbox and the applications into the Firm Record for the MyEPO pages. The tree does not layer over `dsh-base`: it has no model provider, no tool, no agent loop, no chat store, no Web server and no listening port.
 
 ## Table of Contents
 

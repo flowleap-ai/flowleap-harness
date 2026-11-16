@@ -1,8 +1,8 @@
 /**
  * FlowLeap MyEPO pages, browser half: the mirrors of what MyEPO has for the firm. Each page has a launcher in
- * `sidebar.panellist` and a page in the keyed `main` slot. Letters mirrors the Mailbox with
- * `flowleapConnectors.myEpoMailbox()` and `myEpoLetterPdf()`. Applications mirrors the applications with
- * `flowleapConnectors.myEpoApplications()` and `myEpoApplication()`.
+ * `sidebar.panellist` and a page in the keyed `main` slot. Letters mirrors the Mailbox and Applications mirrors the
+ * applications. On a firm installation the pages read the firm's copy in the Firm Record; else they read MyEPO through
+ * the `flowleapConnectors` Remote (`shared/sources.ts`).
  *
  * See packages/client/ui-flowleap-myepo/README.md.
  * @module @deepseek-ai/dsh-client-ui-flowleap-myepo/client
@@ -22,6 +22,7 @@ import { LettersPanelIcon } from './letters/LettersPanelIcon.tsx'
 import { createMailbox } from './letters/mailbox.ts'
 import * as applications from './locales/applications.ts'
 import * as letters from './locales/letters.ts'
+import { installationSource } from './shared/sources.ts'
 
 export type { FlowleapApplicationsKey } from './locales/applications.ts'
 export type { FlowleapLettersKey } from './locales/letters.ts'
@@ -67,16 +68,17 @@ export function apply(ctx: ClientContext): void {
   const lettersCopy = ctx.locale.bind(letters.NS)
   const applicationsCopy = ctx.locale.bind(applications.NS)
 
+  const source = installationSource(connectors, (input, init) => globalThis.fetch(input, init))
   const mailbox = createMailbox({
-    read: () => connectors.myEpoMailbox(),
-    download: id => connectors.myEpoLetterPdf(id),
+    read: source.mailbox,
+    download: source.letterPdf,
     createUrl: pdf => URL.createObjectURL(new Blob([pdf.slice()], { type: 'application/pdf' })),
     revokeUrl: (url) => { URL.revokeObjectURL(url) },
   })
   ctx.effect(() => () => { mailbox.dispose() }, 'ui-flowleap-myepo: PDF address')
   const docket = createDocket({
-    list: () => connectors.myEpoApplications(),
-    read: (procedure, number) => connectors.myEpoApplication(procedure, number),
+    list: source.applications,
+    read: source.application,
     today,
   })
 

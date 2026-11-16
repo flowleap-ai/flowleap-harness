@@ -84,25 +84,35 @@ export interface MyEpoLetterIntake {
   deliver(letter: MyEpoLetterDelivery): Promise<MyEpoDeliveryAnswer>
 }
 
-const WAIT_STATUSES = new Set([408, 425, 429])
+/** The HTTP statuses that ask the caller to wait and try again. */
+export const WAIT_STATUSES: ReadonlySet<number> = new Set([408, 425, 429])
 const recordErrorSchema = z.object({ error: z.string() })
 const knownSchema = z.object({ known: z.boolean() })
 const deliveryAnswerSchema = z.object({ state: z.string(), matter: z.string().nullable(), reason: z.string().nullable() })
 
+/** The request of one call to an intake path: a GET with no fields. */
+export interface RecordIntakeRequest {
+  readonly method?: 'POST' | 'PUT'
+  readonly headers?: Readonly<Record<string, string>>
+  readonly body?: string
+}
+
+/** One call to an intake path of the Firm Record: the path, the request, and the schema of the answer. */
+export type RecordIntakeCall = <T>(path: string, init: RecordIntakeRequest, schema: z.ZodType<T>) => Promise<T>
+
 /**
- * Create the client of the Firm Record's intake paths, with the intake token.
+ * Create the caller of the Firm Record's intake paths, with the intake token.
  * @param options - `url`, the API base (for example `http://record:8091/records/api/`); `token`, the intake token; `fetch`.
- * @returns the intake.
+ * @returns the caller: it resolves the validated answer and rejects with a {@link MyEpoIntakeError}.
  */
-export function createMyEpoLetterIntake(
+export function createRecordIntakeCall(
   options: { readonly url: string; readonly token: string; readonly fetch: typeof fetch },
-): MyEpoLetterIntake {
+): RecordIntakeCall {
   const base = options.url.replace(/\/?$/, '/')
-  const auth = { authorization: `Bearer ${options.token}` }
-  const call = async <T>(path: string, init: RequestInit, schema: z.ZodType<T>): Promise<T> => {
+  return async <T>(path: string, init: RecordIntakeRequest, schema: z.ZodType<T>): Promise<T> => {
     let response: Response
     try {
-      response = await options.fetch(new URL(path, base), init)
+      response = await options.fetch(new URL(path, base), { ...init, headers: { ...init.headers, authorization: `Bearer ${options.token}` } })
     } catch (error) {
       throw new MyEpoIntakeError('unavailable', 0, null, { cause: error })
     }
@@ -116,11 +126,22 @@ export function createMyEpoLetterIntake(
     if (!parsed.success) throw new MyEpoIntakeError('unavailable', response.status, 'invalid-answer', { cause: parsed.error })
     return parsed.data
   }
+}
+
+/**
+ * Create the client of the Firm Record's MyEPO letter paths, with the intake token.
+ * @param options - `url`, the API base (for example `http://record:8091/records/api/`); `token`, the intake token; `fetch`.
+ * @returns the intake.
+ */
+export function createMyEpoLetterIntake(
+  options: { readonly url: string; readonly token: string; readonly fetch: typeof fetch },
+): MyEpoLetterIntake {
+  const call = createRecordIntakeCall(options)
   return {
-    known: async id => (await call(`intake/myepo-letters/${encodeURIComponent(id)}`, { headers: auth }, knownSchema)).known,
+    known: async id => (await call(`intake/myepo-letters/${encodeURIComponent(id)}`, {}, knownSchema)).known,
     deliver: letter => call('intake/myepo-letters', {
       method: 'POST',
-      headers: { ...auth, 'content-type': 'application/json', 'idempotency-key': `myepo-letter:${letter.communication.id}:${Date.parse(letter.download.at)}` },
+      headers: { 'content-type': 'application/json', 'idempotency-key': `myepo-letter:${letter.communication.id}:${Date.parse(letter.download.at)}` },
       body: JSON.stringify(letter),
     }, deliveryAnswerSchema),
   }

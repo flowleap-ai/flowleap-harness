@@ -6,7 +6,7 @@
  */
 
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
-import { createPageStore, readList, type Answer, type ReadFailure, type ReadSnapshot } from '../shared/read.ts'
+import { createPageStore, readList, type Answer, type EpoFailure, type ReadFailure, type ReadSnapshot } from '../shared/read.ts'
 import type { MyEpoApplicationDetailView, MyEpoApplicationsView, MyEpoApplicationView } from '@deepseek-ai/dsh-api-remotes/client'
 
 /** The procedure filter: every application, the European patents, or the unitary patents. */
@@ -21,7 +21,7 @@ export type DocketFailure = ReadFailure
 /** The data of one application: on its way, the answer of the EPO, or a failed call to the Host. */
 export type ApplicationData =
   | { readonly status: 'loading' }
-  | { readonly status: 'ready'; readonly detail: MyEpoApplicationDetailView }
+  | { readonly status: 'ready'; readonly detail: MyEpoApplicationDetailView | EpoFailure }
   | { readonly status: 'failed'; readonly message: string }
 
 /** What the page renders. */
@@ -48,9 +48,9 @@ export type { Answer } from '../shared/read.ts'
 /** What the model needs from the Host. */
 export interface DocketDependencies {
   /** `flowleapConnectors.myEpoApplications()`. */
-  readonly list: () => Promise<Answer<MyEpoApplicationsView>>
+  readonly list: () => Promise<Answer<MyEpoApplicationsView | EpoFailure>>
   /** `flowleapConnectors.myEpoApplication(procedure, number)`. */
-  readonly read: (procedure: string, number: string) => Promise<Answer<MyEpoApplicationDetailView>>
+  readonly read: (procedure: string, number: string) => Promise<Answer<MyEpoApplicationDetailView | EpoFailure>>
   /** Today as an ISO calendar date, for the next due date. */
   readonly today: () => string
 }

@@ -5,8 +5,13 @@
 
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 
-/** Why the EPO gave no list. */
+/**
+ * Why a read gave no list: an outcome of the EPO, or, on a firm installation, of the Firm Record. `no-access`: the
+ * administrator did not give the MyEPO pages to the person. `not-read`: the firm has no copy of the data yet.
+ */
 export type EpoFailure =
+  | { readonly kind: 'no-access' }
+  | { readonly kind: 'not-read' }
   | { readonly kind: 'not-linked' }
   | { readonly kind: 'refused' }
   | { readonly kind: 'unreachable' }

@@ -71,6 +71,7 @@ export type {
   MyEpoEndpoint, MyEpoFailure, MyEpoPageQuery, MyEpoReads, RequestGate,
 } from './myepo-client.ts'
 export { createMyEpoLink, FlowleapMyEpo, MYEPO_FIELDS, MYEPO_RECORD, validateMyEpoFields } from './myepo.ts'
+export type { MyEpoApplicationKey, MyEpoApplicationsCopy, MyEpoCopyPass, MyEpoMailboxCopy, MyEpoMirror } from './myepo-mirror.ts'
 export { createMyEpoLetterIntake, MyEpoIntakeError, readMyEpoLetters } from './myepo-reader.ts'
 export type {
   MyEpoDeliveryAnswer, MyEpoDownloadMode, MyEpoLetterDelivery, MyEpoLetterIntake, MyEpoReadPass, MyEpoRefusal,

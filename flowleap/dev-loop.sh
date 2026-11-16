@@ -205,6 +205,17 @@ start_dsh() {
   wait_ready "$RUN/dsh.pid" "$LOGS/dsh.log" $((PORT + 1)) dsh || die "dsh did not start"
 }
 
+# The MyEPO pages read the firm's copy in the record. The person of `up` gets them, as an administrator gives them to a
+# person of a firm; the record refuses a person who is screened on a matter. A person of a later `as` does not get them.
+give_myepo_pages() {
+  local handle; handle=$(< "$RUN/person")
+  if "$OS/.claude/skills/verify/scripts/record-local.sh" myepo-access "$RECORD" grant "$(< "$RUN/person-oid")" > "$LOGS/myepo-access.log" 2>&1; then
+    say "the MyEPO pages (Letters, Applications): given to $handle"
+  else
+    say "the MyEPO pages (Letters, Applications): not given to $handle: $(tail -1 "$LOGS/myepo-access.log")"
+  fi
+}
+
 # The starter of the full demo, as the host of a firm (flowleap-os lib/starter.mjs and lib/record/router.mjs): when a
 # Ticket wakes a person, the Work router writes starter/requests/<person id> and waits for starter/runtimes/<person id>.json.
 # The starter then starts that person's Ticket runtime: a dsh with the Ticket overlay, the Office rows, the firm templates
@@ -470,6 +481,7 @@ console.log(JSON.stringify(loadSeed().users.map((u) => ({ handle: u.handle, name
     start_double
     converge reader "$PORT|$RECORD_PORT"
     start_reader
+    give_myepo_pages
   else
     stop_pid "$RUN/reader.pid"
     stop_pid "$RUN/double.pid"

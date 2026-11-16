@@ -6,7 +6,7 @@ import { internals, provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { apply, createMyEpoWorker, type Config, type MyEpoWorkerStatus } from '../src/myepo-worker.ts'
 import { createMyEpoDouble } from './myepo-double/double.ts'
-import { DOUBLE_CLIENT, seedData } from './myepo-double/seed-data.ts'
+import { DOUBLE_CLIENT, RESTRICTED_APPLICATION, seedData } from './myepo-double/seed-data.ts'
 
 const MYEPO = { baseUrl: 'https://double.test/latest', tokenUrl: 'https://double.test/token', requestsPerSecond: 1000, timeoutSeconds: 5 }
 const RECORD = 'http://record.test/records/api/'
@@ -56,6 +56,10 @@ function setup(options: { log?: (line: string) => void } = {}) {
   const { dir, testsDir } = makeFolders()
   const double = createMyEpoDouble(seedData(MYEPO.baseUrl), MYEPO, DOUBLE_CLIENT)
   const filed = new Map<string, unknown>()
+  /** The copies for the MyEPO pages that the Firm Record took, by their path below `intake/myepo-mirror/`. */
+  const copies = new Map<string, unknown>()
+  /** The applications that the Firm Record names as stale. */
+  const stale: { procedure: string; number: string }[] = []
   let epoCalls = 0
   let epoDown = false
   let epoAnswer: Answer | undefined
@@ -65,6 +69,11 @@ function setup(options: { log?: (line: string) => void } = {}) {
     if (url.startsWith(RECORD)) {
       const own = recordAnswer?.(new URL(url), init)
       if (own !== undefined) return own
+      if (url.startsWith(`${RECORD}intake/myepo-mirror/`)) {
+        const path = url.slice(`${RECORD}intake/myepo-mirror/`.length)
+        copies.set(path, JSON.parse(bodyOf(init)))
+        return Response.json(path === 'mailbox' ? { letters: 0 } : path === 'applications' ? { applications: 0, stale } : { stored: true })
+      }
       const id = decodeURIComponent(url.slice(`${RECORD}intake/myepo-letters/`.length))
       if ((init?.method ?? 'GET') === 'GET') return Response.json({ known: filed.has(id) })
       const letter = JSON.parse(bodyOf(init)) as { communication: { id: string } }
@@ -89,7 +98,7 @@ function setup(options: { log?: (line: string) => void } = {}) {
     writeFileSync(join(dir, 'link.json'), JSON.stringify({ clientId: DOUBLE_CLIENT.clientId, clientSecret, linkedBy: 'admin', linkedAt: '2026-11-10T07:59:00.000Z' }), { mode: 0o600 })
   }
   return {
-    dir, testsDir, double, filed, worker, status, link, lines,
+    dir, testsDir, double, filed, copies, stale, worker, status, link, lines,
     /** A new worker process over the same folders, network and clock. */
     restart: make,
     epoCalls: () => epoCalls,
@@ -384,6 +393,44 @@ describe('createMyEpoWorker reads', () => {
     await w.worker.tick()
     expect(w.status().failure).toBeNull()
     expect(w.filed.has(order[2] ?? '')).toBe(true)
+  })
+
+  it('copies the Mailbox and the applications into the Firm Record after each read, and logs an application that MyEPO gives no data for', async () => {
+    const s = setup()
+    s.stale.push({ procedure: 'EPC', number: RESTRICTED_APPLICATION })
+    s.link(DOUBLE_CLIENT.clientSecret)
+    await s.worker.tick()
+    expect([...s.copies.keys()]).toEqual(['mailbox', 'applications', `applications/EPC/${RESTRICTED_APPLICATION}`])
+    expect((s.copies.get('mailbox') as { letters: unknown[] }).letters.length).toBe(s.double.state().letters.length)
+    expect(s.copies.get(`applications/EPC/${RESTRICTED_APPLICATION}`)).toEqual({ readAt: '2026-11-10T08:00:00.000Z', detail: null })
+    expect(s.lines.some(line => line.startsWith(`application EPC ${RESTRICTED_APPLICATION}: MyEPO gave no data: `))).toBe(true)
+    expect(s.status().failure).toBeNull()
+  })
+
+  it('goes on with the letters when the Firm Record has no copy paths, logs it once, and logs when the record takes the copy again', async () => {
+    const s = setup()
+    s.onRecord(url => url.pathname.includes('/myepo-mirror/') ? Response.json({ error: 'not-found' }, { status: 404 }) : undefined)
+    s.link(DOUBLE_CLIENT.clientSecret)
+    await s.worker.tick()
+    s.advance(60)
+    await s.worker.tick()
+    expect(s.filed.size).toBeGreaterThan(0)
+    expect([s.status().failure, s.status().lastReadAt]).toEqual([null, '2026-11-10T08:01:00.000Z'])
+    expect(s.lines.filter(line => line.includes('has no paths for the copy')).length).toBe(1)
+    s.onRecord(undefined)
+    s.advance(60)
+    await s.worker.tick()
+    expect(s.lines.filter(line => line.includes('takes the copy for the MyEPO pages again')).length).toBe(1)
+    expect(s.copies.has('mailbox')).toBe(true)
+  })
+
+  it('reports the failure when the Firm Record refuses the copy for another cause', async () => {
+    const s = setup()
+    s.onRecord(url => url.pathname.endsWith('/myepo-mirror/mailbox') ? Response.json({ error: 'invalid-body' }, { status: 400 }) : undefined)
+    s.link(DOUBLE_CLIENT.clientSecret)
+    await s.worker.tick()
+    expect(s.status().failure?.message).toContain('400 invalid-body')
+    expect(s.filed.size).toBeGreaterThan(0)
   })
 
   it('reports the failure and reads nothing while the intake token is missing or empty', async () => {
