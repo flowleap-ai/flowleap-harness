@@ -66,7 +66,7 @@ describe('the source that reads the copy of the firm', () => {
     const source = recordSource('records/', fetchImpl)
     expect(await source.mailbox()).toEqual(ok(READ))
     expect(await source.applications()).toEqual(ok(LIST))
-    expect(await source.application('EPC', 'EP00000001')).toEqual(ok(detail))
+    expect(await source.application('EPC', 'EP00000001')).toEqual(ok({ ...detail, readAt: '2026-11-16T08:00:00.000Z' }))
     expect(paths).toEqual(['records/api/myepo/mailbox', 'records/api/myepo/applications', 'records/api/myepo/applications/EPC/EP00000001'])
   })
 

@@ -8,6 +8,7 @@ import { z } from 'zod'
 import type {
   MyEpoApplicationDetailView, MyEpoApplicationsView, MyEpoLetterPdf, MyEpoMailboxView,
 } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ApplicationDetail } from '../applications/docket.ts'
 import type { LetterDownload } from '../letters/mailbox.ts'
 import type { Answer, EpoFailure } from './read.ts'
 
@@ -17,7 +18,7 @@ export interface MyEpoSource {
   /** The PDF of one letter; `null` when the source has none. */
   readonly letterPdf: (id: string) => Promise<Answer<LetterDownload | null>>
   readonly applications: () => Promise<Answer<MyEpoApplicationsView | EpoFailure>>
-  readonly application: (procedure: string, number: string) => Promise<Answer<MyEpoApplicationDetailView | EpoFailure>>
+  readonly application: (procedure: string, number: string) => Promise<Answer<ApplicationDetail | EpoFailure>>
 }
 
 /** The `flowleapConnectors` calls that the pages use. */
@@ -89,6 +90,7 @@ const applicationsSchema = z.discriminatedUnion('kind', [notRead, z.object({
 })])
 const applicationSchema = z.discriminatedUnion('kind', [notRead, z.object({
   kind: z.literal('read'),
+  readAt: text.optional(),
   titles: z.record(text, text),
   applicants: z.array(text),
   inventors: z.array(text),
@@ -154,7 +156,7 @@ export function recordSource(recordsHref: string, fetchImpl: typeof fetch): MyEp
       (status, code) => (status === 404 && code === 'no-copy' ? null : undefined),
     ),
     applications: () => get<MyEpoApplicationsView | EpoFailure>('applications', json(applicationsSchema), noAccess),
-    application: (procedure, number) => get<MyEpoApplicationDetailView | EpoFailure>(
+    application: (procedure, number) => get<ApplicationDetail | EpoFailure>(
       `applications/${encodeURIComponent(procedure)}/${encodeURIComponent(number)}`, json(applicationSchema), noAccess,
     ),
   }

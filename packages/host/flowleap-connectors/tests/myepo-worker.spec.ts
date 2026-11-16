@@ -60,6 +60,8 @@ function setup(options: { log?: (line: string) => void } = {}) {
   const copies = new Map<string, unknown>()
   /** The applications that the Firm Record names as stale. */
   const stale: { procedure: string; number: string }[] = []
+  /** The read letters that the Firm Record names as having no PDF. */
+  const missingPdf: string[] = []
   let epoCalls = 0
   let epoDown = false
   let epoAnswer: Answer | undefined
@@ -72,7 +74,7 @@ function setup(options: { log?: (line: string) => void } = {}) {
       if (url.startsWith(`${RECORD}intake/myepo-mirror/`)) {
         const path = url.slice(`${RECORD}intake/myepo-mirror/`.length)
         copies.set(path, JSON.parse(bodyOf(init)))
-        return Response.json(path === 'mailbox' ? { letters: 0 } : path === 'applications' ? { applications: 0, stale } : { stored: true })
+        return Response.json(path === 'mailbox' ? { letters: 0, missingPdf } : path === 'applications' ? { applications: 0, stale } : { stored: true })
       }
       const id = decodeURIComponent(url.slice(`${RECORD}intake/myepo-letters/`.length))
       if ((init?.method ?? 'GET') === 'GET') return Response.json({ known: filed.has(id) })
@@ -98,7 +100,7 @@ function setup(options: { log?: (line: string) => void } = {}) {
     writeFileSync(join(dir, 'link.json'), JSON.stringify({ clientId: DOUBLE_CLIENT.clientId, clientSecret, linkedBy: 'admin', linkedAt: '2026-11-10T07:59:00.000Z' }), { mode: 0o600 })
   }
   return {
-    dir, testsDir, double, filed, copies, stale, worker, status, link, lines,
+    dir, testsDir, double, filed, copies, stale, missingPdf, worker, status, link, lines,
     /** A new worker process over the same folders, network and clock. */
     restart: make,
     epoCalls: () => epoCalls,
@@ -404,6 +406,20 @@ describe('createMyEpoWorker reads', () => {
     expect((s.copies.get('mailbox') as { letters: unknown[] }).letters.length).toBe(s.double.state().letters.length)
     expect(s.copies.get(`applications/EPC/${RESTRICTED_APPLICATION}`)).toEqual({ readAt: '2026-11-10T08:00:00.000Z', detail: null })
     expect(s.lines.some(line => line.startsWith(`application EPC ${RESTRICTED_APPLICATION}: MyEPO gave no data: `))).toBe(true)
+    expect(s.status().failure).toBeNull()
+  })
+
+  it('copies the PDF of a read letter that the Firm Record names, and logs one that the EPO gives no PDF for', async () => {
+    const s = setup()
+    const [first, second] = s.double.state().letters.filter(letter => letter.read).map(letter => letter.id)
+    s.missingPdf.push(first!, second!)
+    s.onEpo(url => url.pathname.endsWith(`/download/${second!}`) ? Response.json({ code: 'ERR_30', message: 'spec' }, { status: 400 }) : undefined)
+    s.link(DOUBLE_CLIENT.clientSecret)
+    await s.worker.tick()
+    expect(s.copies.get(`letters/${first!}/content`)).toMatchObject({ document: { fileName: expect.stringMatching(/\.pdf$/u) as string } })
+    expect(s.copies.get(`letters/${second!}/content`)).toEqual({ document: null })
+    expect(s.lines).toContain('1 read letters: the PDF is copied for the MyEPO pages')
+    expect(s.lines.some(line => line.startsWith(`letter ${second!}: no PDF for the MyEPO pages: `))).toBe(true)
     expect(s.status().failure).toBeNull()
   })
 

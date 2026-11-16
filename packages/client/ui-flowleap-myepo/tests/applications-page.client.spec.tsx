@@ -22,7 +22,8 @@ const READY: DocketSnapshot = {
 function page(state: Partial<DocketSnapshot> = {}, copy: Partial<Record<keyof typeof en, string>> = {}) {
   const snapshot = { ...READY, ...state }
   const acts = {
-    refresh: vi.fn(() => Promise.resolve()), select: vi.fn(), step: vi.fn(), retry: vi.fn(), setView: vi.fn(), setPortfolio: vi.fn(),
+    refresh: vi.fn(() => Promise.resolve()), update: vi.fn(() => Promise.resolve()),
+    select: vi.fn(), step: vi.fn(), retry: vi.fn(), setView: vi.fn(), setPortfolio: vi.fn(),
     setQuery: vi.fn(), sortBy: vi.fn(), more: vi.fn(),
   }
   const hooks: Docket['hooks'] = { docket: { getSnapshot: () => snapshot, subscribe: () => () => {} } }
@@ -189,6 +190,10 @@ describe('the Applications page', () => {
     cleanup()
     page({ selected: KEYS[0] })
     expect(screen.getByRole('status').textContent).toBe('Reading the application from MyEPO…')
+    cleanup()
+    // The data of a firm's copy says when the firm worker read it.
+    page({ selected: KEYS[0], data: { [KEYS[0]]: { status: 'ready', detail: { ...DETAIL, readAt: '2026-11-16T08:00:00.000Z' } } } })
+    expect(screen.getByText(/^Copied from MyEPO: 16 Nov 2026, /u)).toBeTruthy()
     cleanup()
     page({ selected: KEYS[0], data: { [KEYS[0]]: { status: 'loading' } } })
     expect(screen.getByRole('status').textContent).toBe('Reading the application from MyEPO…')

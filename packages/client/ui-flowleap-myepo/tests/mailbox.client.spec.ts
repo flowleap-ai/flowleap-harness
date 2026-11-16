@@ -125,6 +125,21 @@ describe('the Letters page model', () => {
     expect(state().pdf).toEqual({ id: 'lost', status: 'none' })
   })
 
+  it('reads again on an update only while a page observes it, and keeps the open letter and its PDF', async () => {
+    const { deps, mailbox, state } = bench()
+    await mailbox.update()
+    expect(deps.read).not.toHaveBeenCalled()
+    const stop = mailbox.hooks.mailbox.subscribe(() => {})
+    await vi.waitFor(() => { expect(state().phase).toBe('ready') })
+    await mailbox.select('grant')
+    await mailbox.update()
+    expect(deps.read).toHaveBeenCalledTimes(2)
+    expect([state().selected, state().pdf?.status]).toEqual(['grant', 'ready'])
+    stop()
+    await mailbox.update()
+    expect(deps.read).toHaveBeenCalledTimes(2)
+  })
+
   it('steps through the shown list and stops at its ends', async () => {
     const { mailbox, state } = bench()
     // Nothing is listed before the first read.

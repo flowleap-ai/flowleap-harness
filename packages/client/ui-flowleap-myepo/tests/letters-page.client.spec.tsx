@@ -24,7 +24,8 @@ const READY: MailboxSnapshot = {
 function page(state: Partial<MailboxSnapshot> = {}) {
   const snapshot = { ...READY, ...state }
   const acts = {
-    refresh: vi.fn(() => Promise.resolve()), select: vi.fn(() => Promise.resolve()), step: vi.fn(() => Promise.resolve()),
+    refresh: vi.fn(() => Promise.resolve()), update: vi.fn(() => Promise.resolve()),
+    select: vi.fn(() => Promise.resolve()), step: vi.fn(() => Promise.resolve()),
     setView: vi.fn(), setQuery: vi.fn(), more: vi.fn(), setWide: vi.fn(), dispose: vi.fn(),
   }
   const hooks: Mailbox['hooks'] = { mailbox: { getSnapshot: () => snapshot, subscribe: () => () => {} } }

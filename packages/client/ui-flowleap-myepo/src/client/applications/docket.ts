@@ -18,10 +18,18 @@ export type DocketColumn = 'reference' | 'number' | 'portfolio' | 'filed' | 'due
 /** Why the last read gave no list: an outcome of the EPO, or a failed call to the Host. */
 export type DocketFailure = ReadFailure
 
+/**
+ * The answer to a read of one application. `readAt` is set on the data of a firm's copy: when the firm worker read it
+ * from MyEPO, ISO 8601.
+ */
+export type ApplicationDetail =
+  | (Extract<MyEpoApplicationDetailView, { kind: 'read' }> & { readonly readAt?: string | undefined })
+  | Exclude<MyEpoApplicationDetailView, { kind: 'read' }>
+
 /** The data of one application: on its way, the answer of the EPO, or a failed call to the Host. */
 export type ApplicationData =
   | { readonly status: 'loading' }
-  | { readonly status: 'ready'; readonly detail: MyEpoApplicationDetailView | EpoFailure }
+  | { readonly status: 'ready'; readonly detail: ApplicationDetail | EpoFailure }
   | { readonly status: 'failed'; readonly message: string }
 
 /** What the page renders. */
@@ -50,7 +58,7 @@ export interface DocketDependencies {
   /** `flowleapConnectors.myEpoApplications()`. */
   readonly list: () => Promise<Answer<MyEpoApplicationsView | EpoFailure>>
   /** `flowleapConnectors.myEpoApplication(procedure, number)`. */
-  readonly read: (procedure: string, number: string) => Promise<Answer<MyEpoApplicationDetailView | EpoFailure>>
+  readonly read: (procedure: string, number: string) => Promise<Answer<ApplicationDetail | EpoFailure>>
   /** Today as an ISO calendar date, for the next due date. */
   readonly today: () => string
 }
@@ -60,6 +68,11 @@ export interface Docket {
   readonly hooks: { readonly docket: HostObservable<DocketSnapshot> }
   /** Read the list again and drop the data read so far. */
   readonly refresh: () => Promise<void>
+  /**
+   * Read the list again when a page shows it, and keep the data read so far of each application that stays in the list.
+   * The data of the open application is read again, with no change of the panel until the answer.
+   */
+  readonly update: () => Promise<void>
   /** Open one application, or close the open one with `null`. */
   readonly select: (key: string | null) => void
   /** Open the application before (-1) or after (1) the open one in the shown list; the first one when none is open. */
@@ -216,9 +229,27 @@ export function createDocket(deps: DocketDependencies): Docket {
     change({ applications: view.applications, total: view.total, readAt: view.readAt, data: {} })
   })
 
+  const update = async (): Promise<void> => {
+    if (!store.observed()) return
+    await readList<Extract<MyEpoApplicationsView, { kind: 'read' }>, DocketSnapshot>(store, deps.list, (view) => {
+      const keys = new Set(view.applications.map(applicationKey))
+      const data = Object.fromEntries(Object.entries(store.get().data).filter(([key]) => keys.has(key)))
+      change({ applications: view.applications, total: view.total, readAt: view.readAt, data })
+    })
+    const key = store.get().selected
+    const open = key === null ? undefined : byKey(key)
+    if (key === null || open === undefined || store.get().data[key]?.status !== 'ready') return
+    const at = epoch
+    const answer = await deps.read(open.procedure, open.number)
+    if (answer.ok && at === epoch && store.get().data[key]?.status === 'ready') {
+      publish({ data: { ...store.get().data, [key]: { status: 'ready', detail: answer.value } } })
+    }
+  }
+
   return {
     hooks: { docket: store.observable },
     refresh,
+    update,
     select: (key) => { change({ selected: key }) },
     step: (direction) => {
       const list = shownApplications(store.get(), deps.today())

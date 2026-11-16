@@ -41,6 +41,8 @@ export interface PageStore<S> {
   readonly get: () => S
   /** @param change - the fields that change; every observer is told. */
   readonly publish: (change: Partial<S>) => void
+  /** @returns true while a page observes the state. */
+  readonly observed: () => boolean
   readonly observable: HostObservable<S>
 }
 
@@ -55,6 +57,7 @@ export function createPageStore<S extends ReadSnapshot>(start: S, firstRead: () 
   const listeners = new Set<() => void>()
   return {
     get: () => snapshot,
+    observed: () => listeners.size > 0,
     publish: (change) => {
       snapshot = { ...snapshot, ...change }
       listeners.forEach((listener) => { listener() })

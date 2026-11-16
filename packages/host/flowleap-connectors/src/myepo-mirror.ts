@@ -3,16 +3,18 @@
  * one pass reads the Mailbox and the applications as the pages show them (`myepo-views.ts`) and sends them to the intake of
  * the Firm Record, which replaces its copy and gives it only to a person who has the MyEPO pages. The copy is a second
  * use of the reads of the firm worker (`myepo-worker.ts`): only that process holds the firm's MyEPO pair. The pass only
- * reads MyEPO and downloads no letter.
+ * reads MyEPO. It downloads the PDF only of a letter that MyEPO shows as read, where a download changes nothing in MyEPO.
  * @module
  */
 
+import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import { MyEpoError, type MyEpoFailure, type MyEpoReads } from './myepo-client.ts'
-import { createRecordIntakeCall, WAIT_STATUSES, type RecordIntakeRequest } from './myepo-reader.ts'
+import { createRecordIntakeCall, MyEpoIntakeError, WAIT_STATUSES, type RecordIntakeRequest } from './myepo-reader.ts'
 import {
   letterView, readApplicationDetail, readApplicationList, readMailbox, readTermDescriptions, type MyEpoApplicationDetail,
 } from './myepo-views.ts'
+import type { MyEpoCommunication } from './myepo-wire.ts'
 import type { MyEpoApplicationView, MyEpoFolderView, MyEpoLetterView } from './types.ts'
 
 /** One application of the copy, as its path names it. */
@@ -45,8 +47,16 @@ export interface MyEpoMirror {
   /**
    * Replace the Mailbox copy (`PUT intake/myepo-mirror/mailbox`).
    * @param copy - the folders and the letters of one read.
+   * @returns the ids of the letters that MyEPO shows as read and that have no PDF in the record, at most 20; none from a
+   *   record of an earlier version.
    */
-  mailbox(copy: MyEpoMailboxCopy): Promise<void>
+  mailbox(copy: MyEpoMailboxCopy): Promise<readonly string[]>
+  /**
+   * Store the PDF of one letter of the copy (`PUT intake/myepo-mirror/letters/<id>/content`).
+   * @param id - the EPO communication id.
+   * @param document - the PDF with the file name of the EPO, or `null` when MyEPO gave none; the record then asks no more.
+   */
+  letterPdf(id: string, document: { readonly fileName: string; readonly pdf: Uint8Array } | null): Promise<void>
   /**
    * Replace the list of applications (`PUT intake/myepo-mirror/applications`). The record keeps the stored data of an
    * application that is still in the list.
@@ -63,7 +73,7 @@ export interface MyEpoMirror {
   detail(application: MyEpoApplicationKey, readAt: string, detail: MyEpoApplicationDetail | null): Promise<void>
 }
 
-const mailboxAnswerSchema = z.object({ letters: z.number() })
+const mailboxAnswerSchema = z.object({ letters: z.number(), missingPdf: z.array(z.string()).default([]) })
 const applicationsAnswerSchema = z.object({
   stale: z.array(z.object({ procedure: z.enum(['EPC', 'UPP']), number: z.string().regex(/^EP\d{8}$/u) })),
 })
@@ -78,8 +88,13 @@ export function createMyEpoMirror(options: { readonly url: string; readonly toke
   const call = createRecordIntakeCall(options)
   const put = (body: object): RecordIntakeRequest => ({ method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
   return {
-    mailbox: async (copy) => {
-      await call('intake/myepo-mirror/mailbox', put(copy), mailboxAnswerSchema)
+    mailbox: async copy => (await call('intake/myepo-mirror/mailbox', put(copy), mailboxAnswerSchema)).missingPdf,
+    letterPdf: async (id, document) => {
+      const bytes = document === null ? null : Buffer.from(document.pdf)
+      const body = bytes === null || document === null
+        ? null
+        : { fileName: document.fileName, sha256: createHash('sha256').update(bytes).digest('hex'), contentBase64: bytes.toString('base64') }
+      await call(`intake/myepo-mirror/letters/${encodeURIComponent(id)}/content`, put({ document: body }), detailAnswerSchema)
     },
     applications: async copy => (await call('intake/myepo-mirror/applications', put(copy), applicationsAnswerSchema)).stale,
     detail: async ({ procedure, number }, readAt, detail) => {
@@ -92,6 +107,10 @@ export function createMyEpoMirror(options: { readonly url: string; readonly toke
 export interface MyEpoCopyPass {
   /** The letters of the Mailbox copy. */
   readonly letters: number
+  /** The read letters whose PDF the pass downloaded and stored. */
+  readonly pdfs: number
+  /** The read letters for which MyEPO gave no PDF, or one that the record did not take, each with why; the record asks no more. */
+  readonly noPdf: readonly { readonly id: string; readonly reason: string }[]
   /** The applications of the list copy. */
   readonly applications: number
   /** The applications whose data the pass read and stored. */
@@ -101,8 +120,10 @@ export interface MyEpoCopyPass {
 }
 
 /**
- * One copy of MyEPO into the Firm Record: the Mailbox, then the list of applications, then the data of the applications
- * that the record names as the oldest. An account with no portfolio permission has no application, and the pass sends an
+ * One copy of MyEPO into the Firm Record: the Mailbox, then the PDFs of the read letters that the record names, then the
+ * list of applications, then the data of the applications that the record names as the oldest. The pass never downloads a
+ * letter that MyEPO shows as unread: that download marks the letter as read, and it is the work of the letter reader.
+ * An account with no portfolio permission has no application, and the pass sends an
  * empty list. An application whose data MyEPO does not give for a cause of that application (`no-permission`, `invalid-response`,
  * or `rejected` with a status other than `408`, `425` or `429`) is stored without data, so that the record asks for the others first. Each
  * other MyEPO failure and each `MyEpoIntakeError` of the record stops the pass; the next pass sends all again.
@@ -110,7 +131,7 @@ export interface MyEpoCopyPass {
  * @returns what the pass did.
  */
 export async function copyMyEpoToRecord(options: {
-  readonly reads: Pick<MyEpoReads, 'folders' | 'communications' | 'applications' | 'bibliographicData' | 'dueDates' | 'pendingFees' | 'terms'>
+  readonly reads: Pick<MyEpoReads, 'folders' | 'communications' | 'downloadCommunication' | 'applications' | 'bibliographicData' | 'dueDates' | 'pendingFees' | 'terms'>
   readonly mirror: MyEpoMirror
   readonly now: () => number
   readonly signal?: AbortSignal
@@ -118,7 +139,18 @@ export async function copyMyEpoToRecord(options: {
   const { reads, mirror, now, signal } = options
   const iso = (): string => new Date(now()).toISOString()
   const mailbox = await readMailbox(reads, signal)
-  await mirror.mailbox({ readAt: iso(), total: mailbox.total, folders: mailbox.folders, letters: mailbox.letters.map(letterView) })
+  const missing = await mirror.mailbox({
+    readAt: iso(), total: mailbox.total, folders: mailbox.folders, letters: mailbox.letters.map(letterView),
+  })
+  let pdfs = 0
+  const noPdf: { id: string; reason: string }[] = []
+  for (const id of missing) {
+    const letter = mailbox.letters.find(candidate => candidate.id === id)
+    if (letter?.read !== true) continue
+    const reason = await sendPdf(reads, mirror, letter, signal)
+    if (reason === null) pdfs++
+    else noPdf.push({ id, reason })
+  }
   const list = await readApplicationList(reads, signal).catch((error: unknown) => {
     if (error instanceof MyEpoError && error.failure.kind === 'no-permission') return { applications: [], total: 0 }
     throw error
@@ -126,7 +158,8 @@ export async function copyMyEpoToRecord(options: {
   const stale = await mirror.applications({ readAt: iso(), total: list.total, applications: list.applications })
   let details = 0
   const noDetail: { application: MyEpoApplicationKey; reason: string }[] = []
-  if (stale.length === 0) return { letters: mailbox.letters.length, applications: list.applications.length, details, noDetail }
+  const done = { letters: mailbox.letters.length, pdfs, noPdf, applications: list.applications.length }
+  if (stale.length === 0) return { ...done, details, noDetail }
   const terms = readTermDescriptions(reads, signal)
   await terms
   for (const application of stale) {
@@ -140,13 +173,36 @@ export async function copyMyEpoToRecord(options: {
     }
     await mirror.detail(application, iso(), detail)
   }
-  return { letters: mailbox.letters.length, applications: list.applications.length, details, noDetail }
+  return { ...done, details, noDetail }
 }
 
-/** The MyEPO failures that are a property of one application; each other kind is of the link or of the network. */
+/**
+ * Download the PDF of one read letter and send it to the copy. When MyEPO gives no PDF for a cause of that letter, or the
+ * record refuses the PDF (for example one above its size limit), the copy gets `null` for the letter.
+ * @returns `null` when the record has the PDF, else why it has none.
+ * @throws the `MyEpoError` of a failure of the link or of the network, and the `MyEpoIntakeError` of a record that does not answer.
+ */
+async function sendPdf(
+  reads: Pick<MyEpoReads, 'downloadCommunication'>, mirror: MyEpoMirror, letter: MyEpoCommunication, signal: AbortSignal | undefined,
+): Promise<string | null> {
+  let reason: string
+  try {
+    const { filename, pdf } = await reads.downloadCommunication(letter, signal)
+    await mirror.letterPdf(letter.id, { fileName: filename.replace(/^.*[/\\]/u, ''), pdf })
+    return null
+  } catch (error) {
+    const ofLetter = error instanceof MyEpoError ? ofOneApplication(error.failure) : error instanceof MyEpoIntakeError && error.kind === 'refused'
+    if (!ofLetter) throw error
+    reason = (error as Error).message
+  }
+  await mirror.letterPdf(letter.id, null)
+  return reason
+}
+
+/** The MyEPO failures that are a property of one application or letter; each other kind is of the link or of the network. */
 const OF_ONE_APPLICATION: ReadonlySet<MyEpoFailure['kind']> = new Set(['no-permission', 'invalid-response', 'unreadable-download'])
 
-/** Whether a MyEPO failure is a property of one application, and not of the link, of the network or of a wait. */
+/** Whether a MyEPO failure is a property of one application or letter, and not of the link, of the network or of a wait. */
 function ofOneApplication(failure: MyEpoFailure): boolean {
   return failure.kind === 'rejected' ? !WAIT_STATUSES.has(failure.status) : OF_ONE_APPLICATION.has(failure.kind)
 }

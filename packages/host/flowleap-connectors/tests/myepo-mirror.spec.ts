@@ -31,13 +31,22 @@ function setup(answer?: Answer) {
 }
 
 /** A Firm Record in memory: it keeps each copy, and names as stale what `stale` picks from the list. */
-function memoryMirror(stale: (copy: MyEpoApplicationsCopy) => readonly MyEpoApplicationKey[] = () => []) {
+function memoryMirror(
+  stale: (copy: MyEpoApplicationsCopy) => readonly MyEpoApplicationKey[] = () => [],
+  missing: (copy: MyEpoMailboxCopy) => readonly string[] = () => [],
+  takePdf: (id: string) => Promise<void> = () => Promise.resolve(),
+) {
+  const pdfs = new Map<string, { fileName: string; pdf: Uint8Array } | null>()
   const details = new Map<string, { readAt: string; detail: unknown }>()
   const kept: { mailbox?: MyEpoMailboxCopy; applications?: MyEpoApplicationsCopy; details: typeof details } = { details }
   const mirror: MyEpoMirror = {
     mailbox: (copy) => {
       kept.mailbox = copy
-      return Promise.resolve()
+      return Promise.resolve(missing(copy))
+    },
+    letterPdf: async (id, document) => {
+      if (document !== null) await takePdf(id)
+      pdfs.set(id, document)
     },
     applications: (copy) => {
       kept.applications = copy
@@ -48,7 +57,7 @@ function memoryMirror(stale: (copy: MyEpoApplicationsCopy) => readonly MyEpoAppl
       return Promise.resolve()
     },
   }
-  return { mirror, kept }
+  return { mirror, kept, pdfs }
 }
 
 const keyOf = ({ procedure, number }: MyEpoApplicationKey): MyEpoApplicationKey => ({ procedure, number })
@@ -60,7 +69,9 @@ describe('copyMyEpoToRecord', () => {
     const before = double.state().letters.filter(letter => letter.read).length
     const pass = await copyMyEpoToRecord({ reads, mirror, now: () => NOW })
     const letters = double.state().letters
-    expect(pass).toEqual({ letters: letters.length, applications: kept.applications!.applications.length, details: 0, noDetail: [] })
+    expect(pass).toEqual({
+      letters: letters.length, pdfs: 0, noPdf: [], applications: kept.applications!.applications.length, details: 0, noDetail: [],
+    })
     expect(kept.mailbox!.readAt).toBe(READ_AT)
     expect(kept.mailbox!.total).toBe(letters.length)
     expect(kept.mailbox!.letters.map(letter => letter.id).sort()).toEqual(letters.map(letter => letter.id).sort())
@@ -126,6 +137,47 @@ describe('copyMyEpoToRecord', () => {
   })
 })
 
+describe('copyMyEpoToRecord, the PDFs of read letters', () => {
+  const readIds = (copy: MyEpoMailboxCopy) => copy.letters.filter(letter => letter.read).map(letter => letter.id)
+
+  it('downloads the PDF of each read letter that the record names, and never one of an unread or unknown letter', async () => {
+    const { double, reads, paths } = setup()
+    const unread = double.state().letters.filter(letter => !letter.read).map(letter => letter.id)
+    const { mirror, pdfs } = memoryMirror(undefined, copy => [...readIds(copy).slice(0, 2), unread[0]!, 'not-in-the-mailbox'])
+    const pass = await copyMyEpoToRecord({ reads, mirror, now: () => NOW })
+    expect([pass.pdfs, pass.noPdf]).toEqual([2, []])
+    expect(pdfs.size).toBe(2)
+    for (const document of pdfs.values()) {
+      expect(Buffer.from(document!.pdf).subarray(0, 5).toString('latin1')).toBe('%PDF-')
+      expect(document!.fileName).toMatch(/^[^/\\]+\.pdf$/u)
+    }
+    expect(paths.filter(path => path.includes('/download/')).length).toBe(2)
+    expect(double.state().letters.filter(letter => !letter.read).map(letter => letter.id)).toEqual(unread)
+  })
+
+  it('stores no PDF for a letter that MyEPO gives none for, or whose PDF the record refuses, and goes on', async () => {
+    const epo = setup(url => url.pathname.includes('/download/') ? Response.json({ code: 'ERR_30', message: 'spec' }, { status: 400 }) : undefined)
+    const none = memoryMirror(undefined, copy => readIds(copy).slice(0, 1))
+    const first = await copyMyEpoToRecord({ reads: epo.reads, mirror: none.mirror, now: () => NOW })
+    expect([first.pdfs, first.noPdf.length, [...none.pdfs.values()]]).toEqual([0, 1, [null]])
+
+    const refused = memoryMirror(undefined, copy => readIds(copy).slice(0, 2), id => id === refusedId ? Promise.reject(new MyEpoIntakeError('refused', 413, 'document-too-large')) : Promise.resolve())
+    const { double, reads } = setup()
+    const refusedId = double.state().letters.find(letter => letter.read)!.id
+    const second = await copyMyEpoToRecord({ reads, mirror: refused.mirror, now: () => NOW })
+    expect([second.pdfs, second.noPdf.map(entry => entry.id), refused.pdfs.get(refusedId)]).toEqual([1, [refusedId], null])
+  })
+
+  it('stops the pass when MyEPO does not answer a download, or the record does not answer', async () => {
+    const epo = setup(url => url.pathname.includes('/download/') ? new Response(null, { status: 503 }) : undefined)
+    const named = memoryMirror(undefined, copy => readIds(copy).slice(0, 1))
+    await expect(copyMyEpoToRecord({ reads: epo.reads, mirror: named.mirror, now: () => NOW })).rejects.toBeInstanceOf(MyEpoError)
+    expect(named.pdfs.size).toBe(0)
+    const away = memoryMirror(undefined, copy => readIds(copy).slice(0, 1), () => Promise.reject(new MyEpoIntakeError('unavailable', 0, null)))
+    await expect(copyMyEpoToRecord({ reads: setup().reads, mirror: away.mirror, now: () => NOW })).rejects.toBeInstanceOf(MyEpoIntakeError)
+  })
+})
+
 describe('createMyEpoMirror', () => {
   it('sends each copy with PUT and the intake token, and returns the applications that the record names', async () => {
     const calls: { url: string; method: string | undefined; auth: string | null; body: unknown }[] = []
@@ -134,21 +186,35 @@ describe('createMyEpoMirror', () => {
       fetch: (input, init) => {
         const url = input instanceof Request ? input.url : input.toString()
         calls.push({ url, method: init?.method, auth: new Headers(init?.headers).get('authorization'), body: JSON.parse(typeof init?.body === 'string' ? init.body : '') })
-        if (url.endsWith('/mailbox')) return Promise.resolve(Response.json({ letters: 0 }))
+        if (url.endsWith('/mailbox')) return Promise.resolve(Response.json({ letters: 0, missingPdf: ['a/b'] }))
         if (url.endsWith('/applications')) return Promise.resolve(Response.json({ applications: 1, stale: [{ procedure: 'UPP', number: 'EP00000001' }] }))
         return Promise.resolve(Response.json({ stored: true }))
       },
     })
     const mailbox = { readAt: READ_AT, total: 0, folders: [], letters: [] }
     const applications = { readAt: READ_AT, total: 0, applications: [] }
-    await mirror.mailbox(mailbox)
+    expect(await mirror.mailbox(mailbox)).toEqual(['a/b'])
     expect(await mirror.applications(applications)).toEqual([{ procedure: 'UPP', number: 'EP00000001' }])
     await mirror.detail({ procedure: 'UPP', number: 'EP00000001' }, READ_AT, null)
-    expect(calls).toEqual([
+    await mirror.letterPdf('a/b', { fileName: 'letter.pdf', pdf: new TextEncoder().encode('%PDF-1.4') })
+    await mirror.letterPdf('a/b', null)
+    expect(calls.slice(3)).toEqual([
+      {
+        url: `${RECORD}intake/myepo-mirror/letters/a%2Fb/content`, method: 'PUT', auth: 'Bearer intake-token-value',
+        body: { document: { fileName: 'letter.pdf', sha256: 'e16fa5d9b51928755db85b917f0297babaf22c7a47e97d9212adab56e61ba04e', contentBase64: 'JVBERi0xLjQ=' } },
+      },
+      { url: `${RECORD}intake/myepo-mirror/letters/a%2Fb/content`, method: 'PUT', auth: 'Bearer intake-token-value', body: { document: null } },
+    ])
+    expect(calls.slice(0, 3)).toEqual([
       { url: `${RECORD}intake/myepo-mirror/mailbox`, method: 'PUT', auth: 'Bearer intake-token-value', body: mailbox },
       { url: `${RECORD}intake/myepo-mirror/applications`, method: 'PUT', auth: 'Bearer intake-token-value', body: applications },
       { url: `${RECORD}intake/myepo-mirror/applications/UPP/EP00000001`, method: 'PUT', auth: 'Bearer intake-token-value', body: { readAt: READ_AT, detail: null } },
     ])
+  })
+
+  it('reads no missing PDF from the answer of a record of an earlier version', async () => {
+    const old = createMyEpoMirror({ url: 'http://old.test/records/api/', token: 't', fetch: () => Promise.resolve(Response.json({ letters: 0 })) })
+    expect(await old.mailbox({ readAt: READ_AT, total: 0, folders: [], letters: [] })).toEqual([])
   })
 
   it('rejects with the refusal of the record, and with unavailable for an answer that it cannot read', async () => {

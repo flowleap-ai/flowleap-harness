@@ -71,6 +71,8 @@ export interface Mailbox {
   readonly hooks: { readonly mailbox: HostObservable<MailboxSnapshot> }
   /** Read the Mailbox again. */
   readonly refresh: () => Promise<void>
+  /** Read the Mailbox again when a page shows it; the open letter and its PDF stay. */
+  readonly update: () => Promise<void>
   /** Open one letter and download its PDF, or close the open letter with `null`. */
   readonly select: (id: string | null) => Promise<void>
   /** Open the letter before (-1) or after (1) the open one in the shown list; the first one when none is open. */
@@ -173,6 +175,7 @@ export function createMailbox(deps: MailboxDependencies): Mailbox {
   return {
     hooks: { mailbox: store.observable },
     refresh,
+    update: () => (store.observed() ? refresh() : Promise.resolve()),
     select,
     step: (direction) => {
       const list = shownLetters(store.get())
