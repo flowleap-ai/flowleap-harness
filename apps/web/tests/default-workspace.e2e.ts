@@ -8,7 +8,7 @@ import {
   assertFinalWorkspaceSnapshot, captureStableAria, compareOrRefreshGolden, fixtureUserPrompts, launchWebScaffold,
   selectedSessionFixture, watchConsole, webSnapshotMode,
 } from './scaffold.ts'
-import { newEnglishPage, saveFailureShot } from './support.ts'
+import { newEnglishPage, pinBrowserClock, saveFailureShot } from './support.ts'
 
 const FIXTURE = fileURLToPath(new URL('../../../snapshots/web/fresh-round-trip/session.v3.jsonl', import.meta.url))
 const EXPECTED = fileURLToPath(new URL('../../../snapshots/web/default-workspace/ui.expected.md', import.meta.url))
@@ -19,6 +19,7 @@ describe.skipIf(MODE === 'record')('web e2e: default Workspace', () => {
   it('prepares a blank Session on startup, reuses it after reload, and sends through the ordinary composer', async () => {
     const fixture = await selectedSessionFixture(FIXTURE)
     const scaffold = await launchWebScaffold({
+      fixtureClock: true,
       firstUse: true,
       replayFixture: fixture,
       // The shared recording remains read-only; replay compares the complete persisted Session.
@@ -29,6 +30,7 @@ describe.skipIf(MODE === 'record')('web e2e: default Workspace', () => {
     const browser = await chromium.launch()
     try {
       const page = await newEnglishPage(browser)
+      await pinBrowserClock(page)
       const tripwire = watchConsole(page)
       try {
         await page.goto(scaffold.authenticatedUrl)

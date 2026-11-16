@@ -86,7 +86,7 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-agent'
 import { provideCmdline } from '@deepseek-ai/dsh-cmdline'
 import { startPrefixProxy, type PrefixProxy } from './prefix-proxy.ts'
-import { REPO_ROOT, requireBuilt, requireDist } from './support.ts'
+import { pinHostClock, REPO_ROOT, requireBuilt, requireDist } from './support.ts'
 
 type AppBoot = typeof import('@deepseek-ai/dsh-app-boot')
 let builtAppBoot: AppBoot | undefined
@@ -455,6 +455,14 @@ export interface LaunchOptions {
   }
   /** Reuse an existing harness home so a second Host can verify user settings across origins. */
   harnessHome?: string
+  /**
+   * Pin the Host clock to the shared fixture day (`pinHostClock`) from before
+   * boot until `close()` restores it, for a scenario whose message times the
+   * Host stamps: a composer send, an in-process follow-up, or a seed anchored
+   * from `Date.now()`. Record mode keeps the real clock. Pair it with
+   * `pinBrowserClock` on every page that renders those messages.
+   */
+  fixtureClock?: boolean
 }
 
 /** Dispose the booted tree and remove both owned temp roots, reporting every independent cleanup failure. */
@@ -472,6 +480,28 @@ async function cleanupScaffoldWorld(ctx: Context, workspaceCwd: string, persiste
  * @returns the running scaffold.
  */
 export async function launchWebScaffold(options: LaunchOptions = {}): Promise<WebScaffold> {
+  if (options.fixtureClock !== true || webSnapshotMode() === 'record') return await bootWebScaffold(options)
+  const hostClock = pinHostClock()
+  try {
+    const scaffold = await bootWebScaffold(options)
+    return {
+      ...scaffold,
+      async close(): Promise<void> {
+        try {
+          await scaffold.close()
+        } finally {
+          hostClock.mockRestore()
+        }
+      },
+    }
+  } catch (error) {
+    hostClock.mockRestore()
+    throw error
+  }
+}
+
+/** Boot the scaffold world that {@link launchWebScaffold} returns, on the clock already in effect. */
+async function bootWebScaffold(options: LaunchOptions): Promise<WebScaffold> {
   requireDist()
   const {
     auditStartupEntries, composeEntries, createRuntimeResolution, initProfile,

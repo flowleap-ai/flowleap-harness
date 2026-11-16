@@ -19,7 +19,7 @@ import {
   webSnapshotMode,
   type WebScaffold,
 } from './scaffold.ts'
-import { saveFailureShot } from './support.ts'
+import { pinBrowserClock, saveFailureShot } from './support.ts'
 
 const MODE = webSnapshotMode()
 const OVERLAY = fileURLToPath(new URL('../../../packages/experimental/webhook-github/examples/github-review/cordis.yml', import.meta.url))
@@ -93,6 +93,7 @@ describe.skipIf(MODE === 'record')('web e2e: GitHub ready-for-review', () => {
     process.env.DSH_GITHUB_WEBHOOK_SECRET = SECRET
     webhookOrigin = `http://127.0.0.1:${String(port)}`
     scaffold = await launchWebScaffold({
+      fixtureClock: true,
       extraOverlayPath: OVERLAY,
       profile: { packages: [
         { dir: fileURLToPath(new URL('../../../packages/experimental/webhook', import.meta.url)) },
@@ -107,6 +108,7 @@ describe.skipIf(MODE === 'record')('web e2e: GitHub ready-for-review', () => {
 
     browser = await chromium.launch()
     page = await browser.newPage({ viewport: { width: 1680, height: 1000 }, locale: 'en-US' })
+    await pinBrowserClock(page)
     await page.addInitScript(() => { localStorage.setItem('dsh.locale', 'en') })
     tripwire = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })

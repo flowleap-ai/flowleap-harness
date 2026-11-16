@@ -27,7 +27,7 @@ import {
   webSnapshotMode,
   type WebScaffold,
 } from './scaffold.ts'
-import { expandOwningTurnProcess, loadEarlierChatPage, newEnglishPage, saveFailureShot } from './support.ts'
+import { expandOwningTurnProcess, loadEarlierChatPage, newEnglishPage, pinBrowserClock, saveFailureShot } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('../../../snapshots/web/minimal-preset', import.meta.url))
 const FIXTURE = join(SNAPSHOT_DIR, 'session.v3.jsonl')
@@ -50,7 +50,7 @@ describe('minimal agent preset', () => {
   let tripwire: ReturnType<typeof watchConsole> | undefined
 
   beforeAll(async () => {
-    scaffold = await launchWebScaffold({ replayFixture: FIXTURE, compareReplaySession: true, paceMs: 10 })
+    scaffold = await launchWebScaffold({ fixtureClock: true, replayFixture: FIXTURE, compareReplaySession: true, paceMs: 10 })
     disposeInjectedPrompt = scaffold.ctx.systemPrompt.section({
       name: 'test:injected-prompt',
       order: 999,
@@ -153,6 +153,7 @@ describe('minimal agent preset', () => {
     onTestFailed(() => { if (page !== undefined) void saveFailureShot(page, 'web-minimal-persistent-bash-card') })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
+    await pinBrowserClock(page)
     tripwire = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
@@ -220,7 +221,7 @@ describe('minimal manual compaction', () => {
     expect(prompts).toHaveLength(2)
     const [initial, continuation] = prompts
     if (initial === undefined || continuation === undefined) throw new Error('minimal compaction fixture requires two user prompts')
-    scaffold = await launchWebScaffold({ replayFixture: fixture, compareReplaySession: true, workspacePathLength: 192 })
+    scaffold = await launchWebScaffold({ fixtureClock: true, replayFixture: fixture, compareReplaySession: true, workspacePathLength: 192 })
     scaffold.ctx.on('llm/stream', async function* (options, next) {
       requests.push(options)
       yield* next()
@@ -300,6 +301,7 @@ describe('minimal manual compaction', () => {
     onTestFailed(() => { if (page !== undefined) void saveFailureShot(page, 'web-minimal-compact') })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
+    await pinBrowserClock(page)
     const tripwire = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
@@ -334,6 +336,7 @@ describe('minimal image reading', () => {
     if (browser === undefined) throw new Error('image scenario browser has not started')
     await page?.close()
     page = await newEnglishPage(browser)
+    await pinBrowserClock(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.locator('[role="treeitem"]').first().click()
     await page.locator(`[data-row-key="session:${id}"]`).click()
@@ -364,7 +367,7 @@ describe('minimal image reading', () => {
 
   beforeAll(async () => {
     scaffold = await launchWebScaffold({
-      replayFixture: join(snapshotDir, 'session.v4.jsonl'), compareReplaySession: true, paceMs: 10,
+      fixtureClock: true, replayFixture: join(snapshotDir, 'session.v4.jsonl'), compareReplaySession: true, paceMs: 10,
     })
     await writeFile(join(scaffold.workspaceCwd, 'red.png'), Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC', 'base64',

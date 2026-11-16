@@ -25,7 +25,7 @@ import {
   acknowledgeReloadConnectionLoss, assertFixtureInventory, captureStableAria, compareOrRefreshGolden,
   launchWebScaffold, readPersistedEvents, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { connectFreshWorkspace, newEnglishPage, saveFailureShot } from './support.ts'
+import { connectFreshWorkspace, newEnglishPage, pinBrowserClock, saveFailureShot } from './support.ts'
 
 const BASE_FIXTURE = fileURLToPath(new URL('../../../snapshots/web/live-interactions/session.v3.jsonl', import.meta.url))
 
@@ -129,12 +129,14 @@ describe.skipIf(MODE === 'record')('web e2e: composer interrupt for a running co
       '',
     ].join('\n'))
     scaffold = await launchWebScaffold({
+      fixtureClock: true,
       replayFixture: join(sidecarRoot, 'session.jsonl'),
       replayOverride: join(sidecarRoot, 'replay.override.json'),
       replayChildFixtures: [parentTurnPath],
     })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
+    await pinBrowserClock(page)
     page.on('request', (request) => {
       const path = new URL(request.url()).pathname
       if (path.startsWith('/api/')) apiCalls.push(path)
