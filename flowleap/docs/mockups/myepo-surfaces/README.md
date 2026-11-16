@@ -1,0 +1,83 @@
+# MyEPO surfaces mockups
+
+HTML mockups of how a person meets the MyEPO data in FlowLeap, for the founder's approval before the builds of **Import your EP docket** and the Mailbox intake. They show the founder decisions of 2026-11-10: four surfaces, where My work holds what needs a person's decision and Letters, Deadlines and Files are views of the same records for looking, search and audit. They follow the [FlowLeap design language](../../../../.agents/skills/flowleap-design-language/SKILL.md) and extend the approved [Add client](../add-client/README.md), [client model](../client-model/README.md) and [MyEPO card](../myepo/README.md) mockups, and My work of the [first-demo mockups](https://github.com/flowleap-ai/flowleap-harness/pull/343). **Status: waits for the founder's approval.**
+
+## How to view
+
+Open [index.html](index.html) (German: [index.de.html](index.de.html)), the review page. It links every screen and state, starts the walkthrough, and lists the decisions for the founder. The pages need the client theme by a relative path, so open them from a checkout of this branch, or serve the repository root:
+
+```sh
+python3 -m http.server 8000 --directory <repository root>
+```
+
+Then open `http://localhost:8000/flowleap/docs/mockups/myepo-surfaces/index.html`.
+
+## Walkthrough
+
+[6-console-keys.html?state=linked&walk=1](6-console-keys.html?state=linked&walk=1) starts a clickable walkthrough of 30 steps; [the German one](6-console-keys.de.html?state=linked&walk=1) has the same steps. A panel at the bottom left shows the step, what the person sees, and **Back** and **Next**; the one control that goes on has a blue outline.
+
+1. Felix Neumann (administrator): the MyEPO card on the Keys page of the Firm admin console, linked, with **Letters from the Mailbox**. He opens the other mode, reads what it changes in MyEPO, keeps the default, and goes back to FlowLeap.
+2. Dr. Martin Krüger (partner): the app's MyEPO card of a firm installation (facts only, beside the single-user card), then **Import your EP docket**, the Add client stepper with Docket, Clients, Conflict check and Review, then Record.
+3. Lena Hoffmann (patent attorney): **Letters**, with the Rule 71(3) communication of SF-2023-0045 listed and not opened, then opened; its deadline with the evidence; **Deadlines** as a table and as a month; the overdue deadline of SF-2022-0024 that needs a person.
+4. Jonas Weber (patent attorney): his **Letters**, without SF-2022-0024, from which he is screened. The page shows no count of other matters.
+5. Dr. Anna Becker (patent attorney): **My work** with the three kinds of MyEPO item, and the letter that FlowLeap cannot file.
+6. Dr. Martin Krüger (partner and rule signer): **Deadline rules**, the review of Rule 71(3) EPC, version 1, with **Sign for this firm**, and the new version 2. Lena Hoffmann checks the **daily control list**; Dr. Martin Krüger records the **weekly audit sample**.
+
+The persons change because the seed walls decide what each person sees: only Lena Hoffmann's walls hold both the overdue Wago deadline and the demo matter, and only Dr. Anna Becker is responsible for SF-2023-0045 and SF-2026-0019.
+
+## Pages
+
+Each page has an English file and a German file (`<name>.de.html`). Open a page with `?theme=light` or `?theme=dark`, and with `?state=<name>` for a view state. [index.html](index.html) lists every state.
+
+| Page | What it shows |
+|---|---|
+| [1a-docket.html](1a-docket.html) to [1e-record.html](1e-record.html) | Import your EP docket: the counts of the docket, the proposed clients in one list with the role, the conflict check, the Review with **Import 3 clients** `⇧⌘↵`, and Record. Each step has the state `large` (a firm with 1,132 applications) |
+| [2-letters.html](2-letters.html) | Letters: a data table of the letters with filters by text, state, client, matter, document type and PDF, and the reading pane from 1366 px. One state for each letter (`r1` to `r16`), `unopened`, `jonas` (the wall), `loading`, `error` and `empty` |
+| [2-letter.html](2-letter.html) | One letter on its own page: below 1366 px a row opens it, and My work opens the letters of Dr. Anna Becker (`r15`, `x1`) |
+| [3-deadlines.html](3-deadlines.html) | Deadlines: a data table by due date, the Outlook line, the wall line, and the `month` view; `jonas` (the wall), `loading` and `error` |
+| [3-deadline.html](3-deadline.html) | One deadline with its evidence: confirmed automatically (default), `person` (overdue, needs a person), `r16` and `r15` (no rule: enter the date), `r6` (no rule, another person enters it), `r1` (closed, replaced) |
+| [4-my-work.html](4-my-work.html) | My work of PR 343 with the three MyEPO items; `context` (row menu) |
+| [5-myepo-card.html](5-myepo-card.html) | The MyEPO card in the app. `firm` and `firm-unlinked`: a firm installation, with no field, the note that the firm administrator links MyEPO and the facts, beside the single-user card. `linked`, `arrival`, `saved`: the single-user card of PR 365 with the letter setting |
+| [7-rules.html](7-rules.html) | Deadline rules (sheet 08): one row for each rule version with the rule in plain words, its legal basis, version, state, signer, confirmation mode and deadlines computed |
+| [7-rule.html](7-rule.html) | The review of Rule 71(3) EPC, version 1: the steps with their citations, four worked examples, the test evidence, shadow mode, and **Sign for this firm** `⇧⌘↵` or **Send back…** `2`. `sendback`, `signed`, `v2` (a new version of the signed rule) |
+| [8-control-list.html](8-control-list.html) | The daily control list of the deadlines that became active without a person, with **Record the check**; `checked` |
+| [9-audit.html](9-audit.html) | The weekly audit sample with a result for each row and **Record the audit**; `ready`, `recorded` |
+| [6-console-keys.html](6-console-keys.html) | The Keys page of the Firm admin console with the MyEPO card: not linked (default), `refused`, `untested` (Save anyway), `done`, `linked`, `arrival`, `saved` |
+
+## Decisions in the mockups
+
+- **Firm installation and single-user installation** (founder, 2026-11-10). On a firm installation only the firm administrator links MyEPO, on the Keys page of the Firm admin console (flowleap-os `lib/console`). The secret stays on the host (invariant `keys.none-in-runtime`); one firm process reads the docket and the Mailbox into the Firm Record; attorneys read only the Firm Record inside their walls, and no attorney runtime calls MyEPO. The app card then shows facts only. A single-user installation keeps the app card of PR 365.
+- **The console page repeats the console, with client tokens.** `6-console-keys.html` has the console's header, navigation, key cards, change banners and the "Save anyway" form, drawn with client tokens so that the gate checks it. The review page lists where the console's own stylesheet does not meet the design language; the console is not redesigned here.
+- **The wall.** Letters and Deadlines show only the matters of the person's teams and no count of other matters (`record.wall-filters-reads`, `record.search-inside-wall`). The `jonas` states show Jonas Weber, who is screened from SF-2022-0024.
+
+- **The letter states are not atlas states.** They use the status shapes with their own words and the classes `.cstatus` and `.cst`, as the MyEPO card does, so `check-mockups.mjs` does not look for them in the status map. The deadline states are atlas states (Active, Deadline proposed, Not computed, Stale).
+- **My work is not redesigned.** It is the My work of PR 343 (founder decision B9: groups Overdue, Today and Later, no checkboxes, a row context menu), with **Open the letter** `O` added to the row menu.
+- **Decision 6 is marked.** Every part that shows the confirmation of a deadline carries the tag **Design not yet approved**.
+- **The overdue date** uses the outline warning triangle in `state-error-primary` with "Overdue by N days" from frame.js, as rule R11 asks.
+- **The Outlook calendar** is one stated line on Deadlines and a property of a deadline; it has no setting.
+- **The data tables** have row hairlines, as the approved client model tables do (client model decision 1).
+
+- **The deadline rules.** The rule pages follow sheet 08 of the process atlas (PR 391): the levels, the rule signature, shadow mode, the audit sample and the control list. Every one of them carries **Design not yet approved**. They live in the app as the tab **Rules** of Deadlines.
+
+## Data
+
+- **Matters, letters and persons.** The seed firm (`flowleap-seed-firm`, commit cee0c11): the seven matters with their file numbers, application numbers, clients and responsible attorneys; the EPO letters of `documents.json` with their kinds and dates; the eight users and the walls of `groups.json`. Titles, applicant names and register statuses are from the EP Register reads of S14 (2026-11-10). An annex and the text intended for grant are files of their letter, not letters of their own.
+- **Due dates.** Only from the deadline engine (`flowleap-deadlines` with the 2027 calendar, rule Rule 71(3) EPC, version 1): 29 Jan 2027 for SF-2023-0045 (letter of 29 Sep 2026), 3 Aug 2026 for SF-2022-0024 (letter of 1 Apr 2026; the four months end on Saturday 1 Aug 2026), 2 Jan 2026 and 20 Oct 2025 for the letters of SF-2021-0011, each with the engine's steps and citations. The engine has no rule for an Article 94(3) communication or a notice of opposition, so these deadlines show **Not computed** and ask a person for the date that the letter states. No other date is a due date.
+- **The day.** The MyEPO link and the first read are on 9 Nov 2026, 14:05 (the example time of the approved card); today is 10 Nov 2026. "Days left" come from the viewer's real clock.
+- **Examples.** The letter `x1` (a change in the list of professional representatives with no application number, a real kind of letter of the EPO sandbox Mailbox); the EPO due dates in MyEPO (29 Jan 2027 for SF-2023-0045, none for SF-2022-0024); the signature of Rule 71(3) EPC, version 1, by Dr. Martin Krüger (no rule version is signed today); the times of the reads and of the opened letter; the person for letters without a matter; the large firm (1,132 applications, 312 applicant names, 287 clients, 18 with no file number, the reading progress, the counts of its rows; the applicant names and the Syntegon opposition of 8 Jan 2025 are real). The pages mark them **Example**.
+- **The rule review.** The four steps, their citations, the 51 golden cases, the oracle over 1,583 letter dates (1 Sep 2023 to 31 Dec 2027) and the worked examples are those of flowleap-deadlines; three examples are seed letters (SF-2023-0045, SF-2022-0024, SF-2021-0011) and the month end is the golden case of 31 Oct 2025. Examples: the FlowLeap review, the signature of Dr. Martin Krüger, the evidence level, version 2 and its change of the law (not real), the shadow numbers (41 compared, 1 difference), and the audit week.
+- **The letter image.** The page image of the Rule 71(3) communication of SF-2023-0045, from the first-demo mockups (the register PDF at 110 dpi).
+
+## Build and check
+
+The pages are generated. Edit `build.mjs`, `review.mjs` or `data.mjs`, then run `node build.mjs` in this folder. The pages load `records.css` of the skill, `../add-client/add-client.css`, `../client-model/client-model.css` and `myepo-surfaces.css`; the card page also loads `../myepo/myepo.css` and draws its dialog with `../myepo/frame.js`. `frame.js` is the first-demo frame with Letters and Deadlines in the sidebar; `table.js` sorts, filters and pages the tables; `walk.js` runs the walkthrough.
+
+From the skill folder `.agents/skills/flowleap-design-language`:
+
+```sh
+node scripts/check-css.mjs ../../../flowleap/docs/mockups/myepo-surfaces --pairs
+node scripts/check-copy.mjs ../../../flowleap/docs/mockups/myepo-surfaces
+node scripts/check-mockups.mjs ../../../flowleap/docs/mockups/myepo-surfaces --shoot <dir>
+```
+
+`check-mockups.mjs` needs Playwright (`FLOWLEAP_PLAYWRIGHT`, see the skill). The screenshots are not committed.

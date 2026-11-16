@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyEPO connector: letters</title>
+<!-- Generated from build.mjs: edit that file and run node build.mjs, never this file -->
+<link rel="stylesheet" href="../../../../.agents/skills/flowleap-design-language/references/mockups/records.css">
+<link rel="stylesheet" href="../add-client/add-client.css">
+<link rel="stylesheet" href="../client-model/client-model.css">
+<link rel="stylesheet" href="../myepo/myepo.css">
+<link rel="stylesheet" href="myepo-surfaces.css">
+</head>
+<body>
+<div class="app">
+  <nav data-sidebar="settings"></nav>
+  <main class="main"><section class="panel"><div class="behind"></div></section></main>
+</div>
+<div class="overlay" role="presentation">
+  <div class="mask" aria-hidden="true"></div>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <div class="dlg-title" id="dlg-title" data-dlg-title></div>
+    <div class="dlg-header"><span class="btn btn-secondary" role="button">Open configuration file</span><span class="iconbtn" data-i="x" role="button" aria-label="Close"></span></div>
+    <nav class="dlg-nav" data-nav="connectors"></nav>
+    <div class="dlg-options">
+      <h2 class="sec-title">Connectors</h2>
+      <p class="sec-intro">FlowLeap reads your firm's EPO account and the patent data services with the firm's own keys.</p>
+      <div class="grp-h">Your firm's EPO account</div>
+<div class="ccard myepo" data-state="default"><div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="ok"></span>Linked</span><span class="right"><span class="btn btn-secondary" data-i="retry" role="button">Test</span><span class="iconbtn boxed" data-i="dots" role="button" aria-label="More acts: Replace credentials, Unlink"></span></span></div>
+<div class="ccard-b"><div class="summary"><span><b>6 portfolios</b></span><span>Mailbox access</span><span>Last test 9 Nov 2026, 14:02</span></div></div>
+<div class="ccard-part letters-part"><div class="label-12">Letters from the Mailbox</div>
+<p class="part-intro">A download marks a letter as read in your firm’s MyEPO. Choose when FlowLeap downloads.</p>
+<div class="opts" role="radiogroup" aria-label="When FlowLeap downloads a letter"><div class="opt mode on" role="radio" aria-checked="true"><span class="radio on"></span><div><div class="h">Download a letter when a person or a task opens it</div><div class="d">Default. For the time beside your old docket: MyEPO stays as your team knows it.</div><ul class="what"><li data-i="check">In your MyEPO, a letter stays unread until a person or a task opens it in FlowLeap.</li><li data-i="check">FlowLeap files each letter and computes its deadline at arrival, from the list data.</li><li data-i="info">The agent prepares the work on a letter only after a person opens it.</li></ul></div></div><div class="opt mode" role="radio" aria-checked="false" data-walk="mode-arrival" data-href="5-myepo-card.html?state=arrival"><span class="radio"></span><div><div class="h">Download each letter when it arrives</div><div class="d">The agent prepares the work before anybody opens the letter.</div><ul class="what"><li data-i="warn">In your MyEPO, every letter shows as read a few minutes after it arrives. A person who works in MyEPO no longer sees which letters are new.</li><li data-i="check">FlowLeap files each letter and computes its deadline at arrival, from the list data.</li><li data-i="check">The agent reads the PDF and prepares the work at once.</li></ul></div></div></div>
+<p class="part-note" data-i="shield">In both modes, FlowLeap never marks a letter as handled in MyEPO.</p>
+</div>
+<div class="ccard-part next-part"><div><div class="h">Next: import your EP docket</div><div class="d">FlowLeap proposes your clients from the applications in MyEPO, and starts to read the Mailbox after the import.</div></div><span class="btn btn-secondary" data-i="clients" role="button" data-walk="import" data-href="1a-docket.html?state=reading">Import your EP docket</span></div>
+<div class="ccard-f"><span class="note" data-i="lock">Nothing changed.</span><div class="acts"><span class="btn btn-primary" role="button" aria-disabled="true">Save</span></div></div></div>
+      <div class="ccard myepo" data-state="linked">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="ok"></span>Linked</span><span class="right"><span class="btn btn-secondary" data-i="retry" role="button">Test</span><span class="iconbtn boxed" data-i="dots" role="button" aria-label="More acts: Replace credentials, Unlink"></span></span></div>
+<div class="ccard-b"><div class="summary"><span><b>6 portfolios</b></span><span>Mailbox access</span><span>Last test 9 Nov 2026, 14:02</span></div></div>
+<div class="ccard-part letters-part"><div class="label-12">Letters from the Mailbox</div>
+<p class="part-intro">A download marks a letter as read in your firm’s MyEPO. Choose when FlowLeap downloads.</p>
+<div class="opts" role="radiogroup" aria-label="When FlowLeap downloads a letter"><div class="opt mode on" role="radio" aria-checked="true"><span class="radio on"></span><div><div class="h">Download a letter when a person or a task opens it</div><div class="d">Default. For the time beside your old docket: MyEPO stays as your team knows it.</div><ul class="what"><li data-i="check">In your MyEPO, a letter stays unread until a person or a task opens it in FlowLeap.</li><li data-i="check">FlowLeap files each letter and computes its deadline at arrival, from the list data.</li><li data-i="info">The agent prepares the work on a letter only after a person opens it.</li></ul></div></div><div class="opt mode" role="radio" aria-checked="false" data-walk="mode-arrival" data-href="5-myepo-card.html?state=arrival"><span class="radio"></span><div><div class="h">Download each letter when it arrives</div><div class="d">The agent prepares the work before anybody opens the letter.</div><ul class="what"><li data-i="warn">In your MyEPO, every letter shows as read a few minutes after it arrives. A person who works in MyEPO no longer sees which letters are new.</li><li data-i="check">FlowLeap files each letter and computes its deadline at arrival, from the list data.</li><li data-i="check">The agent reads the PDF and prepares the work at once.</li></ul></div></div></div>
+<p class="part-note" data-i="shield">In both modes, FlowLeap never marks a letter as handled in MyEPO.</p>
+</div>
+<div class="ccard-part next-part"><div><div class="h">Next: import your EP docket</div><div class="d">FlowLeap proposes your clients from the applications in MyEPO, and starts to read the Mailbox after the import.</div></div><span class="btn btn-secondary" data-i="clients" role="button" data-walk="import" data-href="1a-docket.html?state=reading">Import your EP docket</span></div>
+<div class="ccard-f"><span class="note" data-i="lock">Nothing changed.</span><div class="acts"><span class="btn btn-primary" role="button" aria-disabled="true">Save</span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="arrival">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="ok"></span>Linked</span><span class="right"><span class="btn btn-secondary" data-i="retry" role="button">Test</span><span class="iconbtn boxed" data-i="dots" role="button" aria-label="More acts: Replace credentials, Unlink"></span></span></div>
+<div class="ccard-b"><div class="summary"><span><b>6 portfolios</b></span><span>Mailbox access</span><span>Last test 9 Nov 2026, 14:02</span></div></div>
+<div class="ccard-part letters-part"><div class="label-12">Letters from the Mailbox</div>
+<p class="part-intro">A download marks a letter as read in your firm’s MyEPO. Choose when FlowLeap downloads.</p>
+<div class="opts" role="radiogroup" aria-label="When FlowLeap downloads a letter"><div class="opt mode" role="radio" aria-checked="false" data-walk="mode-opened" data-href="5-myepo-card.html?state=linked"><span class="radio"></span><div><div class="h">Download a letter when a person or a task opens it</div><div class="d">Default. For the time beside your old docket: MyEPO stays as your team knows it.</div><ul class="what"><li data-i="check">In your MyEPO, a letter stays unread until a person or a task opens it in FlowLeap.</li><li data-i="check">FlowLeap files each letter and computes its deadline at arrival, from the list data.</li><li data-i="info">The agent prepares the work on a letter only after a person opens it.</li></ul></div></div><div class="opt mode on" role="radio" aria-checked="true"><span class="radio on"></span><div><div class="h">Download each letter when it arrives</div><div class="d">The agent prepares the work before anybody opens the letter.</div><ul class="what"><li data-i="warn">In your MyEPO, every letter shows as read a few minutes after it arrives. A person who works in MyEPO no longer sees which letters are new.</li><li data-i="check">FlowLeap files each letter and computes its deadline at arrival, from the list data.</li><li data-i="check">The agent reads the PDF and prepares the work at once.</li></ul></div></div></div>
+<p class="part-note" data-i="shield">In both modes, FlowLeap never marks a letter as handled in MyEPO.</p>
+</div>
+<div class="ccard-f"><span class="note" data-i="lock">Save applies the setting to the next letter.</span><div class="acts"><span class="btn btn-primary" role="button" data-walk="save" data-href="5-myepo-card.html?state=saved">Save</span></div></div>
+      </div>
+      <div class="ccard myepo" data-state="saved">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="ok"></span>Linked</span><span class="right"><span class="btn btn-secondary" data-i="retry" role="button">Test</span><span class="iconbtn boxed" data-i="dots" role="button" aria-label="More acts: Replace credentials, Unlink"></span></span></div>
+<div class="ccard-b"><div class="summary"><span><b>6 portfolios</b></span><span>Mailbox access</span><span>Last test 9 Nov 2026, 14:02</span></div></div>
+<div class="ccard-part letters-part"><div class="label-12">Letters from the Mailbox</div>
+<p class="part-intro">A download marks a letter as read in your firm’s MyEPO. Choose when FlowLeap downloads.</p>
+<div class="opts" role="radiogroup" aria-label="When FlowLeap downloads a letter"><div class="opt mode" role="radio" aria-checked="false" data-walk="mode-opened" data-href="5-myepo-card.html?state=linked"><span class="radio"></span><div><div class="h">Download a letter when a person or a task opens it</div><div class="d">Default. For the time beside your old docket: MyEPO stays as your team knows it.</div><ul class="what"><li data-i="check">In your MyEPO, a letter stays unread until a person or a task opens it in FlowLeap.</li><li data-i="check">FlowLeap files each letter and computes its deadline at arrival, from the list data.</li><li data-i="info">The agent prepares the work on a letter only after a person opens it.</li></ul></div></div><div class="opt mode on" role="radio" aria-checked="true"><span class="radio on"></span><div><div class="h">Download each letter when it arrives</div><div class="d">The agent prepares the work before anybody opens the letter.</div><ul class="what"><li data-i="warn">In your MyEPO, every letter shows as read a few minutes after it arrives. A person who works in MyEPO no longer sees which letters are new.</li><li data-i="check">FlowLeap files each letter and computes its deadline at arrival, from the list data.</li><li data-i="check">The agent reads the PDF and prepares the work at once.</li></ul></div></div></div>
+<p class="part-note" data-i="shield">In both modes, FlowLeap never marks a letter as handled in MyEPO. Changed by Felix Neumann, 10 Nov 2026, 08:40.</p>
+</div>
+<div class="ccard-f"><span class="note" data-i="lock">Saved. It applies from the next letter.</span><div class="acts"><span class="btn btn-primary" role="button" aria-disabled="true">Save</span></div></div>
+      </div>
+      <div class="cset" data-state="firm"><div class="ccard myepo"><div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="ok"></span>Linked</span></div><div class="ccard-b"><div class="line" data-i="lock"><div>Your firm administrator links MyEPO in the Firm admin console. The credentials stay on the firm’s host; FlowLeap reads the docket and the Mailbox once for the whole firm, and you see the matters of your teams.</div></div></div><div class="ccard-part"><dl class="ro-facts"><dt>MyEPO</dt><dd>Linked since 9 Nov 2026, 14:05</dd><dt>Last read</dt><dd class="num">10 Nov 2026, 09:00</dd><dt>Letters</dt><dd>Downloaded when a person or a task opens them</dd></dl></div><div class="ccard-part next-part"><div><div class="h">Next: import your EP docket</div><div class="d">FlowLeap proposes your clients from the applications in MyEPO, and starts to read the Mailbox after the import.</div></div><span class="btn btn-secondary" data-i="clients" role="button" data-walk="import" data-href="1a-docket.html?state=reading">Import your EP docket</span></div></div><div class="grp-h">For comparison: a single-user installation (the dev loop, the desktop app) <span class="ex-note">Compare</span></div>
+      <div class="ccard myepo">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="ok"></span>Linked</span><span class="right"><span class="btn btn-secondary" data-i="retry" role="button">Test</span><span class="iconbtn boxed" data-i="dots" role="button" aria-label="More acts: Replace credentials, Unlink"></span></span></div>
+<div class="ccard-b"><div class="summary"><span><b>6 portfolios</b></span><span>Mailbox access</span><span>Last test 9 Nov 2026, 14:02</span></div></div>
+<div class="ccard-part letters-part"><div class="label-12">Letters from the Mailbox</div>
+<p class="part-intro">A download marks a letter as read in your firm’s MyEPO. Choose when FlowLeap downloads.</p>
+<div class="opts" role="radiogroup" aria-label="When FlowLeap downloads a letter"><div class="opt mode on" role="radio" aria-checked="true"><span class="radio on"></span><div><div class="h">Download a letter when a person or a task opens it</div><div class="d">Default. For the time beside your old docket: MyEPO stays as your team knows it.</div><ul class="what"><li data-i="check">In your MyEPO, a letter stays unread until a person or a task opens it in FlowLeap.</li><li data-i="check">FlowLeap files each letter and computes its deadline at arrival, from the list data.</li><li data-i="info">The agent prepares the work on a letter only after a person opens it.</li></ul></div></div><div class="opt mode" role="radio" aria-checked="false" data-walk="mode-arrival" data-href="5-myepo-card.html?state=arrival"><span class="radio"></span><div><div class="h">Download each letter when it arrives</div><div class="d">The agent prepares the work before anybody opens the letter.</div><ul class="what"><li data-i="warn">In your MyEPO, every letter shows as read a few minutes after it arrives. A person who works in MyEPO no longer sees which letters are new.</li><li data-i="check">FlowLeap files each letter and computes its deadline at arrival, from the list data.</li><li data-i="check">The agent reads the PDF and prepares the work at once.</li></ul></div></div></div>
+<p class="part-note" data-i="shield">In both modes, FlowLeap never marks a letter as handled in MyEPO.</p>
+</div>
+      </div></div>
+      <div class="cset" data-state="firm-unlinked"><div class="ccard myepo"><div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="idle"></span>Not linked</span></div><div class="ccard-b"><div class="line" data-i="lock"><div>Your firm administrator links MyEPO in the Firm admin console. The credentials stay on the firm’s host; FlowLeap reads the docket and the Mailbox once for the whole firm, and you see the matters of your teams.</div></div></div><div class="ccard-part"><dl class="ro-facts"><dt>MyEPO</dt><dd>Not linked yet</dd></dl></div></div><div class="grp-h">For comparison: a single-user installation (the dev loop, the desktop app) <span class="ex-note">Compare</span></div>
+      <div class="ccard myepo">
+<div class="ccard-h"><span class="ccard-mark" data-i="epo"></span><span class="name">MyEPO</span><span class="cstatus"><span class="cst" data-s="ok"></span>Linked</span><span class="right"><span class="btn btn-secondary" data-i="retry" role="button">Test</span><span class="iconbtn boxed" data-i="dots" role="button" aria-label="More acts: Replace credentials, Unlink"></span></span></div>
+<div class="ccard-b"><div class="summary"><span><b>6 portfolios</b></span><span>Mailbox access</span><span>Last test 9 Nov 2026, 14:02</span></div></div>
+<div class="ccard-part letters-part"><div class="label-12">Letters from the Mailbox</div>
+<p class="part-intro">A download marks a letter as read in your firm’s MyEPO. Choose when FlowLeap downloads.</p>
+<div class="opts" role="radiogroup" aria-label="When FlowLeap downloads a letter"><div class="opt mode on" role="radio" aria-checked="true"><span class="radio on"></span><div><div class="h">Download a letter when a person or a task opens it</div><div class="d">Default. For the time beside your old docket: MyEPO stays as your team knows it.</div><ul class="what"><li data-i="check">In your MyEPO, a letter stays unread until a person or a task opens it in FlowLeap.</li><li data-i="check">FlowLeap files each letter and computes its deadline at arrival, from the list data.</li><li data-i="info">The agent prepares the work on a letter only after a person opens it.</li></ul></div></div><div class="opt mode" role="radio" aria-checked="false" data-walk="mode-arrival" data-href="5-myepo-card.html?state=arrival"><span class="radio"></span><div><div class="h">Download each letter when it arrives</div><div class="d">The agent prepares the work before anybody opens the letter.</div><ul class="what"><li data-i="warn">In your MyEPO, every letter shows as read a few minutes after it arrives. A person who works in MyEPO no longer sees which letters are new.</li><li data-i="check">FlowLeap files each letter and computes its deadline at arrival, from the list data.</li><li data-i="check">The agent reads the PDF and prepares the work at once.</li></ul></div></div></div>
+<p class="part-note" data-i="shield">In both modes, FlowLeap never marks a letter as handled in MyEPO.</p>
+</div>
+      </div></div>
+    </div>
+  </div>
+</div>
+<script src="../myepo/frame.js"></script>
+<script src="table.js"></script>
+<script src="walk.js"></script>
+</body>
+</html>
