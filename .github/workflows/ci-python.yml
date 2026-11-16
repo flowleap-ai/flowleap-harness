@@ -9,6 +9,8 @@ name: CI Python
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, labeled]
+  push:
+    branches: [flowleap]
 permissions:
   contents: read
 
@@ -32,12 +34,16 @@ jobs:
     name: ci lane
     outputs:
       full: ${{ steps.lane.outputs.full }}
+      ready: ${{ steps.lane.outputs.ready }}
     steps:
       - name: Select the fast or the full lane
         id: lane
         env:
-          FULL: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
-        run: echo "full=$FULL" >> "$GITHUB_OUTPUT"
+          FULL: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
+          READY: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
+        run: |
+          echo "full=$FULL" >> "$GITHUB_OUTPUT"
+          echo "ready=$READY" >> "$GITHUB_OUTPUT"
 
   python-sdk:
     needs: lane
@@ -83,9 +89,9 @@ jobs:
   # ci.yml's "all checks passed": every blocking job in THIS workflow is
   # listed in `needs`. The bookkeeping job follows the Linux failover switch
   # like the other verdicts.
-  # A draft run runs no Python job and reports under a name that says so.
+  # A fast-lane run runs no Python job and reports under a name that says so.
   python-checks-passed:
-    name: ${{ needs.lane.outputs.full == 'true' && 'python checks passed' || 'python checks not run (draft)' }}
+    name: ${{ needs.lane.outputs.full == 'true' && 'python checks passed' || 'python checks not run (fast lane)' }}
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404'
           || vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'

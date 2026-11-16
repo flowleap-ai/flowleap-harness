@@ -841,7 +841,7 @@ describe('CI workflow', () => {
     expect(windowsWorkflow.env).toEqual(prWorkflow.env)
     const pythonWorkflow = loadWorkflow('.github/workflows/ci-python.yml')
     if (!isRecord(pythonWorkflow.on)) throw new TypeError('CI Python workflow must define on')
-    expect(Object.keys(pythonWorkflow.on)).toEqual(['pull_request'])
+    expect(Object.keys(pythonWorkflow.on)).toEqual(['pull_request', 'push'])
     expect(pythonWorkflow.concurrency).toEqual(prWorkflow.concurrency)
     expect(pythonWorkflow.env).toEqual(prWorkflow.env)
 
@@ -1718,6 +1718,7 @@ describe('CI lanes', () => {
   const ready: LaneEvent = { event_name: 'pull_request', action: 'ready_for_review', draft: false }
   const readyPush: LaneEvent = { event_name: 'pull_request', action: 'synchronize', draft: false }
   const labelledDraft: LaneEvent = { event_name: 'pull_request', action: 'labeled', label: 'full-ci', draft: true, labels: ['full-ci'] }
+  const labelledReady: LaneEvent = { event_name: 'pull_request', action: 'synchronize', draft: false, labels: ['full-ci'] }
   const otherLabel: LaneEvent = { event_name: 'pull_request', action: 'labeled', label: 'enhancement', draft: false, labels: ['enhancement'] }
   const merge: LaneEvent = { event_name: 'push' }
   const nightly: LaneEvent = { event_name: 'schedule' }
@@ -1745,20 +1746,13 @@ describe('CI lanes', () => {
       push: { branches: ['flowleap'] },
     })
     expect(windows.on).toMatchObject({ push: { branches: ['flowleap'] }, schedule: [{ cron: '17 2 * * *' }] })
+    expect(python.on).toMatchObject({ push: { branches: ['flowleap'] } })
   })
 
   it('runs only static, lint, and unit tests on a draft, under verdict names that are not the required ones', () => {
     expect(simulateRun('ci.yml', draft)).toEqual({
       started: ['node-24', 'node-24-lint', 'node-24-unit'],
-      verdict: { name: 'fast lane passed (draft, not full CI)', result: 'success' },
-    })
-    expect(simulateRun('ci-windows.yml', draft)).toEqual({
-      started: [],
-      verdict: { name: 'windows checks not run (draft)', result: 'success' },
-    })
-    expect(simulateRun('ci-python.yml', draft)).toEqual({
-      started: [],
-      verdict: { name: 'python checks not run (draft)', result: 'success' },
+      verdict: { name: 'fast lane passed (not full CI)', result: 'success' },
     })
     expect(simulateRun('ci.yml', draft, { 'node-24-unit': 'failure' }).verdict?.result).toBe('failure')
   })
@@ -1766,7 +1760,35 @@ describe('CI lanes', () => {
   it.each([
     ['ready for review', ready],
     ['a push to a ready pull request', readyPush],
+  ])('adds the web snapshots to the fast lane for %s', (_, event) => {
+    expect(simulateRun('ci.yml', event)).toEqual({
+      started: ['node-24', 'node-24-lint', 'node-24-unit', 'node-24-web-snapshots'],
+      verdict: { name: 'fast lane passed (not full CI)', result: 'success' },
+    })
+    for (const job of ['node-24', 'node-24-lint', 'node-24-unit', 'node-24-web-snapshots']) {
+      for (const result of ['failure', 'cancelled', 'skipped'] as const) {
+        expect(simulateRun('ci.yml', event, { [job]: result }).verdict?.result, `${job} ${result}`).toBe('failure')
+      }
+    }
+  })
+
+  it.each([
+    ['a draft', draft],
+    ['a ready pull request', readyPush],
+  ])('runs no Windows or Python job in the fast lane of %s', (_, event) => {
+    expect(simulateRun('ci-windows.yml', event)).toEqual({
+      started: [],
+      verdict: { name: 'windows checks not run (fast lane)', result: 'success' },
+    })
+    expect(simulateRun('ci-python.yml', event)).toEqual({
+      started: [],
+      verdict: { name: 'python checks not run (fast lane)', result: 'success' },
+    })
+  })
+
+  it.each([
     ['a full-ci label on a draft', labelledDraft],
+    ['a push to a ready pull request labelled full-ci', labelledReady],
   ])('runs the full suite for %s', (_, event) => {
     expect(simulateRun('ci.yml', event)).toEqual({ started: fullLinux, verdict: { name: 'all checks passed', result: 'success' } })
     expect(simulateRun('ci-windows.yml', event)).toEqual({
@@ -1779,18 +1801,22 @@ describe('CI lanes', () => {
     })
   })
 
-  it('runs the full Linux suite and Windows coverage after a merge, and only Windows coverage nightly', () => {
+  it('runs the full Linux suite, Windows coverage, and Python after a merge, and only Windows coverage nightly', () => {
     expect(simulateRun('ci.yml', merge)).toEqual({ started: fullLinux, verdict: { name: 'all checks passed', result: 'success' } })
     expect(simulateRun('ci-windows.yml', merge)).toEqual({
       started: ['windows-build', 'windows-coverage', 'windows-native-tests'],
       verdict: { name: 'windows checks passed', result: 'success' },
     })
+    expect(simulateRun('ci-python.yml', merge)).toEqual({
+      started: ['python-runtime', 'python-sdk'],
+      verdict: { name: 'python checks passed', result: 'success' },
+    })
     expect(simulateRun('ci-windows.yml', nightly)).toEqual({ started: ['windows-coverage'] })
   })
 
   it.each(Object.keys(requiredNames))('never passes the required %s verdict unless every full-lane job succeeded', (file) => {
-    const events = [draft, ready, readyPush, labelledDraft, otherLabel, merge]
-    const fullJobs = simulateRun(file, ready).started
+    const events = [draft, ready, readyPush, labelledDraft, labelledReady, otherLabel, merge]
+    const fullJobs = simulateRun(file, labelledReady).started
     for (const event of events) {
       for (const job of fullJobs) {
         for (const result of ['failure', 'cancelled', 'skipped'] as const) {
@@ -1801,6 +1827,7 @@ describe('CI lanes', () => {
       }
     }
     expect(simulateRun(file, ready, { lane: 'failure' }).verdict).toMatchObject({ result: 'failure' })
+    expect(simulateRun(file, labelledReady, { lane: 'failure' }).verdict).toMatchObject({ result: 'failure' })
   })
 
   it('ignores other labels in a concurrency group of their own', () => {
@@ -1818,7 +1845,7 @@ describe('CI lanes', () => {
     expect(evaluateTemplate(String(group['cancel-in-progress']), { github: githubContext(merge) })).toBe('false')
   })
 
-  it('starts 3 worker jobs per draft push and at most 14 per ready push, inside the 20 hosted jobs', () => {
+  it('starts 3 worker jobs per draft push, 11 per ready push, and at most 19 in the full lane, inside the 20 hosted jobs', () => {
     const workers = (event: LaneEvent): { beforeSdk: number; afterSdk: number } => {
       let linuxAndWindows = 0
       for (const file of ['ci.yml', 'ci-windows.yml']) {
@@ -1832,7 +1859,9 @@ describe('CI lanes', () => {
       }
     }
     expect(workers(draft)).toEqual({ beforeSdk: 3, afterSdk: 3 })
-    expect(workers(ready)).toEqual({ beforeSdk: 13, afterSdk: 14 })
+    expect(workers(ready)).toEqual({ beforeSdk: 11, afterSdk: 11 })
+    expect(workers(labelledReady)).toEqual({ beforeSdk: 17, afterSdk: 18 })
+    expect(workers(merge)).toEqual({ beforeSdk: 18, afterSdk: 19 })
   })
 })
 
@@ -1923,7 +1952,8 @@ function simulateRun(file: string, event: LaneEvent, results: Record<string, Job
     if (id === 'lane') {
       const step = Array.isArray(job.steps) ? job.steps.filter(isRecord).find(candidate => candidate.id === 'lane') : undefined
       const full = isRecord(step?.env) ? evaluateTemplate(String(step.env.FULL), context) : ''
-      settled[id] = { result: results.lane ?? 'success', outputs: { full } }
+      const ready = isRecord(step?.env) ? evaluateTemplate(String(step.env.READY), context) : ''
+      settled[id] = { result: results.lane ?? 'success', outputs: { full, ready } }
       continue
     }
     outcome.started.push(id)
