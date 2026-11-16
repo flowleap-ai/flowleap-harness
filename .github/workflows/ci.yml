@@ -1,8 +1,8 @@
 name: CI
 
-# Draft pull requests run the fast lane; ready pull requests, pull requests
-# labelled `full-ci`, and pushes to `flowleap` run the full lane. The `lane`
-# job decides once per run and every other job reads its output.
+# Pull requests run the fast lane; pull requests labelled `full-ci` and pushes
+# to `flowleap` run the full lane. The `lane` job decides once per run and
+# every other job reads its output.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, labeled]
@@ -61,7 +61,7 @@ jobs:
       - name: Select the fast or the full lane
         id: lane
         env:
-          FULL: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
+          FULL: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci') }}
         run: echo "full=$FULL" >> "$GITHUB_OUTPUT"
 
   node-24:
@@ -308,7 +308,7 @@ jobs:
           && github.event.pull_request.user.login != 'dependabot[bot]'
           && fromJSON('["self-hosted", "linux", "x64", "vm-backup"]')
           || 'ubuntu-latest' }}
-    name: node 24 / unit, changed files (draft fast lane)
+    name: node 24 / unit, changed files (fast lane)
     env:
       # The coverage lane's per-test budget; vitest.config.ts reads it.
       DSH_COVERAGE_TEST_TIMEOUT_MS: '90000'
@@ -780,9 +780,9 @@ jobs:
   # An explicit status function runs the verdict after failed/skipped needs
   # without keeping a cancelled workflow alive for an obsolete verdict.
   # Only a full-lane run reports "all checks passed", and only when every
-  # full-lane job succeeded; a draft run reports under a fast-lane name.
+  # full-lane job succeeded; a fast-lane run reports under a fast-lane name.
   all-checks-passed:
-    name: ${{ needs.lane.outputs.full == 'true' && 'all checks passed' || 'fast lane passed (draft, not full CI)' }}
+    name: ${{ needs.lane.outputs.full == 'true' && 'all checks passed' || 'fast lane passed (not full CI)' }}
     # This bookkeeping-only verdict must not depend on custom-pool
     # provisioning — and under Linux failover it follows the same selector as
     # the worker jobs it aggregates, so a standard-hosted outage cannot strand

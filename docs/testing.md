@@ -16,7 +16,7 @@ Session fixtures retain headers and payloads but omit body sequence/time envelop
 
 ## Fork CI lanes
 
-In the `flowleap` fork, a draft pull request runs only static, lint, and unit checks and never reports `all checks passed`. A ready pull request, the `full-ci` label, and a push to `flowleap` run the full suite; Windows coverage runs after a merge and nightly ([lanes](../.agents/notes/implemented/process/2026-11-09-fork-ci-draft-and-full-lanes.md)).
+In the `flowleap` fork, a pull request runs only static, lint, and changed-file unit checks and never reports `all checks passed`. The `full-ci` label and a `flowleap` push run the full suite; Windows coverage also runs nightly ([lanes](../.agents/notes/implemented/process/2026-11-09-fork-ci-draft-and-full-lanes.md), [ready](../.agents/notes/implemented/process/2026-11-16-fork-ci-ready-pull-requests-fast-lane.md)).
 
 ## How specs execute
 

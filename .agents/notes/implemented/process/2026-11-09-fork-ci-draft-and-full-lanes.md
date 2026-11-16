@@ -8,16 +8,16 @@ The `flowleap` fork runs CI on free GitHub-hosted runners with 4 CPUs, because t
 
 ## Decision
 
-`ci.yml`, `ci-windows.yml`, and `ci-python.yml` each start with the same `lane` job. It sets `full` to true for a push or a schedule, for a pull request that is not a draft, and for a pull request labelled `full-ci`. Every other job reads that output.
+`ci.yml`, `ci-windows.yml`, and `ci-python.yml` each start with the same `lane` job. It sets `full` to true for a push or a schedule and for a pull request labelled `full-ci`. Every other job reads that output. This note first sent every ready pull request to the full lane; [the ready fast lane](2026-11-16-fork-ci-ready-pull-requests-fast-lane.md) replaced that part of the decision.
 
-- **Fast lane (draft).** `node 24 / static` (including the doc-sync gates, without `doc-typecheck`, which needs a build), `node 24 / lint` (with typecheck), and `node 24 / unit, changed files (draft fast lane)`. The unit job runs `check:ci:unit:changed`: `vitest run --changed <PR base>` without coverage, with the coverage lane's 90 s test budget. Windows and Python run no job.
+- **Fast lane (each pull request without the `full-ci` label).** `node 24 / static` (including the doc-sync gates, without `doc-typecheck`, which needs a build), `node 24 / lint` (with typecheck), and `node 24 / unit, changed files (fast lane)`. The unit job runs `check:ci:unit:changed`: `vitest run --changed <PR base>` without coverage, with the coverage lane's 90 s test budget. Windows and Python run no job.
 - **Full lane.** Linux static, lint, coverage, snapshots and artifacts, the four web snapshot shards, benchmarks, and Node compatibility; the Windows build and native tests; and Python. The unit job does not run, because coverage runs the same tests.
-- **After a merge.** A push to `flowleap` runs the full Linux suite and the Windows build, native tests, and coverage. Pushes queue instead of cancelling each other, so every run that starts also finishes.
+- **After a merge.** A push to `flowleap` runs the full Linux suite, the Windows build, native tests, and coverage, and Python. Pushes queue instead of cancelling each other, so every run that starts also finishes.
 - **Nightly.** `ci-windows.yml` runs only Windows coverage at 02:17 UTC.
 
-The `full-ci` label must exist in the repository; it was created once on 2026-11-09 with `gh label create full-ci -R flowleap-ai/flowleap-harness --color 0E8A16 --description "Run the full CI suite on this PR"`. Adding it to a draft starts a `labeled` run in the full lane.
+The `full-ci` label must exist in the repository; it was created once on 2026-11-09 with `gh label create full-ci -R flowleap-ai/flowleap-harness --color 0E8A16 --description "Run the full CI suite on this PR"`. Adding it to a pull request starts a `labeled` run in the full lane.
 
-Each verdict job names itself from the lane. Only a full-lane run reports `all checks passed`, `windows checks passed`, or `python checks passed`, and only when every job of the full lane succeeded. A draft run reports `fast lane passed (draft, not full CI)`, `windows checks not run (draft)`, or `python checks not run (draft)`. A re-run of a draft run keeps its draft event and its draft names.
+Each verdict job names itself from the lane. Only a full-lane run reports `all checks passed`, `windows checks passed`, or `python checks passed`, and only when every job of the full lane succeeded. A fast-lane run reports `fast lane passed (not full CI)`, `windows checks not run (fast lane)`, or `python checks not run (fast lane)`. A re-run keeps the event and the names of its first attempt.
 
 A `labeled` event for any label other than `full-ci` skips the `lane` job, and with it every job of the run. Its concurrency group carries the run id, so it cannot cancel the run of the current head.
 
@@ -25,15 +25,15 @@ Branch protection on `flowleap` requires only the `signoff` status, so the verdi
 
 ## Consequences
 
-A ready push starts at most 14 worker jobs at the same time, of the 20 that the organization's free plan allows. A draft push starts 3. Two ready pushes at the same time wait in the queue for runners; two such pushes already went over 20 before this change.
+A pull-request push starts 3 worker jobs at the same time, a `full-ci` push at most 14, and a push to `flowleap` at most 15, of the 20 that the organization's free plan allows.
 
-Windows-only coverage gaps and Windows-only test failures under coverage are found after the merge, on the `flowleap` push run or the nightly run, not on the pull request. The Windows build and native tests still run on every full-lane pull request.
+Windows-only coverage gaps and Windows-only test failures under coverage are found after the merge, on the `flowleap` push run or the nightly run, not on the pull request. The Windows build and native tests run on every `full-ci` pull request.
 
-A draft does not run `doc-typecheck`, the snapshots, or any Windows or Python job. Its green fast lane is not evidence for those surfaces. Vitest selects a draft's unit tests through the import graph. A test that reads a changed file at run time, such as the workflow specs that read `.github/workflows/*.yml`, is not selected. A change to any `package.json` selects every test.
+A fast-lane run does not run `doc-typecheck`, coverage, the snapshots, or any Windows or Python job. Its green fast lane is not evidence for those surfaces. Vitest selects the fast lane's unit tests through the import graph. A test that reads a changed file at run time, such as the workflow specs that read `.github/workflows/*.yml`, is not selected. A change to any `package.json` selects every test.
 
 ## Verification
 
-[Workflow tests](../../../../scripts/ci-workflow.spec.ts) evaluate the workflows' own `if`, `name`, and verdict expressions for a draft push, a ready-for-review event, a push to a ready pull request, a `full-ci` label, another label, a push to `flowleap`, and the schedule. They prove that no required verdict name passes unless every full-lane job succeeded, for each job and for the results failure, cancelled, and skipped. Removing the coverage check from the CI verdict makes that test fail. The tests also pin the job counts per lane.
+[Workflow tests](../../../../scripts/ci-workflow.spec.ts) evaluate the workflows' own `if`, `name`, and verdict expressions for a draft push, a ready-for-review event, a push to a ready pull request, a `full-ci` label on a draft and on a ready pull request, another label, a push to `flowleap`, and the schedule. They prove that no required verdict name passes unless every full-lane job succeeded, for each job and for the results failure, cancelled, and skipped. Removing the coverage check from the CI verdict makes that test fail. The tests also pin the job counts per lane.
 
 ## Alternatives considered
 
