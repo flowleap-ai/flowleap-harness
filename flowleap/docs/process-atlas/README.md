@@ -69,6 +69,14 @@ Founder decisions 1 to 6 of 2026-11-10 (AI-native means removing bottlenecks; fo
 
 **Why these cuts.** The link is one object with one owner (the administrator) and its own security rules, so it is a sheet. The import owns its client proposals, and the index row is the object that later letters file on, so both machines are in one sheet. The MyEPO letter goes through the same filing states as a forwarded letter, so it is a route in sheets 1 and 2, not a second intake: two machines would repeat the same rules. The decision on a deadline reads evidence from sheets 1, 2 and 7 and changes the confirm of sheet 2, so it is a sheet of its own that sheet 2 points to.
 
+## The letter processes
+
+| # | Sheet | Starts when | Ends when |
+|---|---|---|---|
+| 9 | [An Art. 94(3) letter arrives](09-art-94-3-letter.md) (draft, 2026-11-13) | The office event of an Art. 94(3) communication is recorded | The deadline is decided, and the reading is accepted, rejected, replaced or stale, or the attorney works by hand |
+
+Sheet 9 designs the path of one letter for the formalities person and the attorney on one letter board, with a [clickable walkthrough](../mockups/a94-letter/a94-letter-walkthrough.html). It adds the machines of the reading and of its item; it changes no rule of sheets 0, 3 and 8.
+
 ## The shared states
 
 Seven record objects carry the state across the sheets. Each sheet adds only its own states.
@@ -77,6 +85,8 @@ Seven record objects carry the state across the sheets. Each sheet adds only its
 |---|---|---|---|
 | **Document** | `listed` (MyEPO route), `stored`, `duplicate`, `unreadable`, `kind_proposed`, `read`, `duplicate_proposed`, `match_proposed`, `ambiguous`, `unmatched`, `matched`, `filed`, `replaced`, `not_relevant`, `firm_letter` (MyEPO route) | Intake (sheet 1) | 1, 2, 3, 4 (the sent copy of a report is a document) |
 | **Office event** | `awaiting_code`, `code_proposed`, `recorded`, `no_event`, `no_period` | Sheet 2 | 2, 3 |
+| **Reading** (sheet 9) | `proposed`, `in_review`, `rerun_requested`, `accepted`, `rejected`, `superseded`, `stale` | Firm Record | 3, 9 |
+| **Reading item** (sheet 9) | `proposed`, `accepted`, `corrected`, `rejected`, `added`, `superseded` | Firm Record | 9 |
 | **Proposal** | `proposed`, `accepted`, `edited`, `rejected`, `stale` (design section 1.3) | Firm Record | 1 (a kind, a match, a duplicate), 2 (an event code, a deadline), 3 (each work product), 4 (the report) |
 | **Deadline** | `deadline_proposed`, `engine_refused`, `manual_proposed`, `first_confirmed` (sheet 8), `active`, `rejected`, `stale`, `disputed`, `closed_without_act`, `to_docket` | Sheet 2 | 2, 3 |
 | **Ticket** | `opened`, `no_person`, `routed`, `observed`, `by_hand`, `waking`, `running`, `run_failed`, `proposals_ready`, `decided`, `cancelled` | Work router (sheet 3) | 3, 4, 5 |
