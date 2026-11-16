@@ -16,8 +16,11 @@
 
 import type { DataKeysRequiredError, ProviderKeyInvalidError } from './errors.js';
 
-/** The providers a host holds credentials for. `mistral` is the OCR key (ADR 0019 C3a). */
-export type ConnectorProvider = 'epoOps' | 'usptoOdp' | 'semanticScholar' | 'mistral';
+/**
+ * The providers a host holds credentials for. `mistral` is the OCR key (ADR 0019 C3a).
+ * `dpma` is the user name and password of a DPMAconnectPlus contract (./dpma/).
+ */
+export type ConnectorProvider = 'epoOps' | 'usptoOdp' | 'semanticScholar' | 'mistral' | 'dpma';
 
 export interface EpoOpsCredentials {
 	readonly consumerKey: string;
@@ -43,11 +46,21 @@ export interface MistralCredentials {
 	readonly baseUrl?: string;
 }
 
+/**
+ * The access of one DPMAconnectPlus contract (HTTP Basic). The DPMA gives it
+ * after a signed contract. A host without one answers `missing`.
+ */
+export interface DpmaCredentials {
+	readonly username: string;
+	readonly password: string;
+}
+
 export interface ConnectorCredentialMap {
 	epoOps: EpoOpsCredentials;
 	usptoOdp: UsptoOdpCredentials;
 	semanticScholar: SemanticScholarCredentials;
 	mistral: MistralCredentials;
+	dpma: DpmaCredentials;
 }
 
 /**
