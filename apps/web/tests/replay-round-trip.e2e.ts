@@ -29,7 +29,7 @@ import {
   launchWebScaffold, recordFixture, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
 import {
-  connectFreshWorkspace, expandTurnProcesses, newEnglishPage, REPO_ROOT, saveFailureShot,
+  connectFreshWorkspace, expandTurnProcesses, newEnglishPage, REPO_ROOT, saveFailureShot, WEB_FIXTURE_TIME,
 } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('../../../snapshots/web/fresh-round-trip', import.meta.url))
@@ -65,10 +65,12 @@ describe('web e2e: fresh round trip through the real assembly', () => {
   let settledSessionId: SessionId | undefined
   let remoteSocket: WebSocketRoute | undefined
   const sessionEvents: SessionEvent[] = []
-  const browserNow = Date.now()
+  // The Host clock reads the fixture day in replay, so the fixed page clock does too.
+  const browserNow = MODE === 'record' ? Date.now() : WEB_FIXTURE_TIME
 
   beforeAll(async () => {
     scaffold = await launchWebScaffold({
+      fixtureClock: true,
       compareReplaySession: true,
       ...(MODE === 'record' ? {} : { replayFixture: FIXTURE, paceMs: 15 }),
     })

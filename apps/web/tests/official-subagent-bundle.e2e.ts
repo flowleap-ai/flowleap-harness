@@ -15,7 +15,7 @@ import {
   assertFinalWorkspaceSnapshot, assertFixtureInventory, captureExpandedTurnProcessAria, compareOrRefreshGolden,
   fixtureUserPrompts, launchWebScaffold, seedSession, selectedSessionFixture, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { connectFreshWorkspace, newEnglishPage, saveFailureShot } from './support.ts'
+import { connectFreshWorkspace, newEnglishPage, pinBrowserClock, saveFailureShot } from './support.ts'
 
 const DIR = fileURLToPath(new URL('../../../snapshots/web/official-subagent-bundle', import.meta.url))
 const FIXTURE = join(DIR, 'session.v4.jsonl')
@@ -95,6 +95,7 @@ describe.skipIf(MODE === 'record')('web snapshot: Official native subagent bundl
       },
     } }]))
     scaffold = await launchWebScaffold({
+      fixtureClock: true,
       developerTools: true, profile: { packages: [{ dir: PACKAGE }] },
       extraOverlayPath: [fileURLToPath(new URL('./pin-browse-picker.overlay.yml', import.meta.url)), overlay],
       replayFixture: FIXTURE, compareReplaySession: true,
@@ -107,6 +108,7 @@ describe.skipIf(MODE === 'record')('web snapshot: Official native subagent bundl
     expect(scaffold.ctx.tools.schemas().some(tool => tool.name === 'subagent_claude_code')).toBe(true)
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
+    await pinBrowserClock(page)
     tripwire = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })

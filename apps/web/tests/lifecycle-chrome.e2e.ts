@@ -23,7 +23,7 @@ import {
   launchWebScaffold, recordFixture, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
 import {
-  connectFreshWorkspace, connectFreshWorkspaceZh, expandOwningTurnProcess, newEnglishPage, saveFailureShot,
+  connectFreshWorkspace, connectFreshWorkspaceZh, expandOwningTurnProcess, newEnglishPage, pinBrowserClock, saveFailureShot,
   writeComposerDraft, ZH_BROWSER_LOCALE,
 } from './support.ts'
 
@@ -56,10 +56,11 @@ describe('web e2e: lifecycle & chrome (workspace flow / reload / dark mode)', ()
   beforeAll(async () => {
     scaffold = await launchWebScaffold(MODE === 'record'
       ? {}
-      : { replayFixture: FIXTURE, replayOverride: REPLAY_OVERRIDE, paceMs: REPLAY_PACE_MS })
+      : { fixtureClock: true, replayFixture: FIXTURE, replayOverride: REPLAY_OVERRIDE, paceMs: REPLAY_PACE_MS })
     scaffold.ctx.on('session/event', (_session, event: SessionEvent) => { sessionEvents.push(event) })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
+    if (MODE !== 'record') await pinBrowserClock(page)
     tripwire = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })

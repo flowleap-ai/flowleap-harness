@@ -15,7 +15,7 @@ import {
   type WebScaffold,
 } from './scaffold.ts'
 import {
-  connectFreshWorkspace, expandOwningTurnProcess, expandTurnProcesses, newEnglishPage, REPO_ROOT, saveFailureShot,
+  connectFreshWorkspace, expandOwningTurnProcess, expandTurnProcesses, newEnglishPage, pinBrowserClock, REPO_ROOT, saveFailureShot,
 } from './support.ts'
 
 const MODE = webSnapshotMode()
@@ -52,6 +52,7 @@ describe.skipIf(MODE === 'record')('web e2e: durable workflow run in Chat', () =
     expect(prompts).toHaveLength(1)
     prompt = prompts[0]!
     scaffold = await launchWebScaffold({
+      fixtureClock: true,
       replayFixture: PARENT_FIXTURE,
       replayChildFixtures: [CHILD_FIXTURE],
       compareReplaySession: false,
@@ -64,6 +65,7 @@ describe.skipIf(MODE === 'record')('web e2e: durable workflow run in Chat', () =
     }, { prepend: true })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
+    await pinBrowserClock(page)
     tripwire = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })

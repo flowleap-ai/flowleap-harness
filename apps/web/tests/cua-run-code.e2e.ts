@@ -12,7 +12,7 @@ import {
   assertFixtureInventory, captureStableAria, compareOrRefreshGolden, fixtureUserPrompts,
   launchWebScaffold, selectedSessionFixture, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { connectFreshWorkspace, newEnglishPage, saveFailureShot } from './support.ts'
+import { connectFreshWorkspace, newEnglishPage, pinBrowserClock, saveFailureShot } from './support.ts'
 
 const fixture = fileURLToPath(new URL('../../../snapshots/session/cua-run-code/session.v4.jsonl', import.meta.url))
 const snapshotDirectory = fileURLToPath(new URL('../../../snapshots/web/cua-run-code', import.meta.url))
@@ -35,12 +35,14 @@ it.skipIf(mode === 'record')('shows standard CUA programs and their recorded sou
       config: { allowedApps: [{ id: 'a'.repeat(64), name: 'Fixture', executablePath: '/fixture/app' }] } },
   ] }]))
   const scaffold = resources.scaffold = await launchWebScaffold({
+    fixtureClock: true,
     replayFixture: fixture, compareReplaySession: false, extraOverlayPath: patch,
   })
   const events: SessionEvent[] = []
   scaffold.ctx.on('session/event', (_session, event) => { events.push(event) })
   const browser = resources.browser = await chromium.launch()
   const page = await newEnglishPage(browser), tripwire = watchConsole(page)
+  await pinBrowserClock(page)
   onTestFailed(() => saveFailureShot(page, 'web-e2e-cua-run-code'))
   await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
   await connectFreshWorkspace(page, scaffold.workspaceCwd)

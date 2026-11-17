@@ -15,7 +15,7 @@ import {
   launchWebScaffold, parseSeedFixture, seedSession,
   watchConsole, webSnapshotMode, selectedSessionFixture, type WebScaffold,
 } from './scaffold.ts'
-import { newEnglishPage, saveFailureShot, writeComposerDraft } from './support.ts'
+import { newEnglishPage, pinBrowserClock, saveFailureShot, WEB_FIXTURE_TIME, writeComposerDraft } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/fork-mid-turn', import.meta.url))
 // Borrowed read-only from its recorded-session owner.
@@ -69,6 +69,7 @@ describe('web e2e: exact-boundary fork seeds branch closers and continues', () =
     const replayOverride = join(replayDir, 'replay.override.json')
     await writeFile(replayOverride, JSON.stringify(continuationScript()))
     scaffold = await launchWebScaffold({
+      fixtureClock: true,
       replayFixture: join(replayDir, 'override-only.jsonl'),
       replayOverride,
       // Use paced chunks for the child continuation's live-stream assertions.
@@ -78,9 +79,10 @@ describe('web e2e: exact-boundary fork seeds branch closers and continues', () =
     const firstCall = parseSeedFixture(fixture).events.find(event => event.type === 'tool/call')
     if (firstCall === undefined) throw new Error('fork-mid-turn seed lacks a tool/call')
     forkAt = firstCall.seq
-    await seedSession(scaffold, fixture, SEED_ID)
+    await seedSession(scaffold, fixture, SEED_ID, undefined, { createdAt: WEB_FIXTURE_TIME })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
+    if (MODE !== 'record') await pinBrowserClock(page)
     tripwire = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })

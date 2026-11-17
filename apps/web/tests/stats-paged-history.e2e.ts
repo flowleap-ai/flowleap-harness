@@ -16,7 +16,7 @@ import {
   assertFixtureInventory, captureStableAria, compareOrRefreshGolden,
   launchWebScaffold, seedSession, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { newEnglishPage, saveFailureShot } from './support.ts'
+import { newEnglishPage, pinBrowserClock, saveFailureShot } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('./expected/stats-paged-history', import.meta.url))
 const UI_EXPECTED = fileURLToPath(new URL('./expected/stats-paged-history/ui.expected.md', import.meta.url))
@@ -97,6 +97,7 @@ describe('web e2e: whole-session stats survive history paging', () => {
     await seedSession(scaffold, buildSeed(TURNS), SEED_ID)
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
+    await pinBrowserClock(page)
     tripwire = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })

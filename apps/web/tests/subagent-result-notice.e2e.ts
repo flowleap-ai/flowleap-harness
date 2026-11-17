@@ -12,7 +12,7 @@ import {
   acknowledgeReloadConnectionLoss, assertFixtureInventory, captureStableAria, compareOrRefreshGolden,
   launchWebScaffold, watchConsole, webSnapshotMode,
 } from './scaffold.ts'
-import { connectFreshWorkspace, connectFreshWorkspaceZh } from './support.ts'
+import { connectFreshWorkspace, connectFreshWorkspaceZh, pinBrowserClock } from './support.ts'
 
 const DIR = fileURLToPath(new URL('./expected/subagent-result-notice/', import.meta.url))
 const MODE = webSnapshotMode()
@@ -31,13 +31,14 @@ describe.skipIf(MODE === 'record')('web e2e: subagent result notices', () => {
   afterAll(async () => { await browser?.close() })
 
   it.each(['en', 'zh'] as const)('shows recorded outcomes and preserves notice bodies in %s', async (locale) => {
-    const scaffold = await launchWebScaffold()
+    const scaffold = await launchWebScaffold({ fixtureClock: true })
     let context: BrowserContext | undefined
     try {
       context = await browser.newContext({
         locale: locale === 'en' ? 'en-US' : 'zh-CN', timezoneId: 'Asia/Shanghai', viewport: { width: 1280, height: 900 },
       })
       const page = await context.newPage()
+      await pinBrowserClock(page)
       const tripwire = watchConsole(page)
       await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
       await (locale === 'en' ? connectFreshWorkspace : connectFreshWorkspaceZh)(page, scaffold.workspaceCwd)

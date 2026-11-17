@@ -15,7 +15,7 @@ import {
   compareOrRefreshGolden, fixtureUserPrompts,
   launchWebScaffold, readPersistedEvents, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { connectFreshWorkspace, newEnglishPage, saveFailureShot } from './support.ts'
+import { connectFreshWorkspace, newEnglishPage, pinBrowserClock, saveFailureShot } from './support.ts'
 
 const SNAPSHOT_DIR = fileURLToPath(new URL('../../../snapshots/web/feedback-release', import.meta.url))
 // Both routes borrow the same settled turn; this manifest references its owner.
@@ -109,6 +109,7 @@ describe.each(MODE === 'record' ? ['deepseek-official'] : ['deepseek-official', 
     const address = collector.address()
     if (address === null || typeof address === 'string') throw new Error('collector has no port')
     scaffold = await launchWebScaffold({
+      fixtureClock: true,
       telemetryUrl: `http://127.0.0.1:${address.port}/v1/logs`,
       telemetryMode: 'FEEDBACK_ONLY',
       telemetryScheduledDelayMillis: 10,
@@ -129,6 +130,7 @@ describe.each(MODE === 'record' ? ['deepseek-official'] : ['deepseek-official', 
     })
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
+    if (MODE !== 'record') await pinBrowserClock(page)
     tripwire = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })

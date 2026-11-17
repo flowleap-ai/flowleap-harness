@@ -10,7 +10,7 @@ import {
   assertFixtureInventory, captureStableAria, compareOrRefreshGolden, fixtureUserPrompts,
   launchWebScaffold, seedSession, selectedSessionFixture, watchConsole, webSnapshotMode, type WebScaffold,
 } from './scaffold.ts'
-import { expandOwningTurnProcess, newEnglishPage, saveFailureShot } from './support.ts'
+import { expandOwningTurnProcess, newEnglishPage, pinBrowserClock, saveFailureShot } from './support.ts'
 
 // Any generation path names the role; the owner's highest committed generation replays.
 const FIXTURE = fileURLToPath(new URL('../../../snapshots/session/skill-load/session.v4.jsonl', import.meta.url))
@@ -33,6 +33,7 @@ describe.skipIf(MODE === 'record')('web e2e: dedicated Skill tool row', () => {
     await seedSession(scaffold, fixture, SEED_ID)
     browser = await chromium.launch()
     page = await newEnglishPage(browser)
+    await pinBrowserClock(page)
     tripwire = watchConsole(page)
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
